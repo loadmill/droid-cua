@@ -1,18 +1,18 @@
 # droid-cua
 
-**A minimal AI agent that uses ADB to control Android emulators with OpenAI’s computer-use-preview model.**
+**Minimal AI agent that controls Android devices using OpenAI’s computer-use-preview model.**
 
 ---
 
 ## 🚀 How It Works
 
-1. Connects to a running Android emulator using ADB.
+1. Connects to a running Android emulator.
 2. Captures full-screen device screenshots.
-3. Scales down the screenshots for compatibility with OpenAI's model.
+3. Scales down the screenshots for OpenAI model compatibility.
 4. Sends screenshots and user instructions to OpenAI’s computer-use-preview model.
 5. Receives structured actions (click, scroll, type, keypress, wait, drag).
 6. Rescales model outputs back to real device coordinates.
-7. Executes the actions on the emulator via ADB.
+7. Executes the actions on the device.
 8. Repeats until you type `exit`.
 
 ---
@@ -29,12 +29,21 @@
    echo "OPENAI_API_KEY=your-api-key" > .env
    ```
 
-3. Start your Android emulator manually (optional):
+3. Make sure ADB is available in your system PATH:
+   ```sh
+   adb version
+   ```
+   If not, you may need to link it manually (example for macOS):
+   ```sh
+   sudo ln -s ~/Library/Android/sdk/platform-tools/adb /usr/local/bin/adb
+   ```
+
+4. Start your Android emulator manually (optional):
    ```sh
    emulator -avd Your_AVD_Name
    ```
 
-4. Run the agent:
+5. Run the agent:
    ```sh
    node index.js --avd=Your_AVD_Name
    ```
@@ -45,11 +54,11 @@
 
 ## 🧠 Features
 
-- Captures screenshots directly from the emulator (`adb exec-out screencap -p`).
-- Dynamically scales the screenshot for OpenAI model compatibility.
+- Captures screenshots directly from the device (`adb exec-out screencap -p`).
+- Dynamically scales screenshots for OpenAI compatibility.
 - Maps model-generated actions (click, scroll, drag, type, keypress, wait) back to real device coordinates.
 - Connects automatically to a running emulator or launches it if needed.
-- Pretends the device screen is embedded inside a browser page for model compatibility.
+- Pretends the device screen is embedded inside a browser page for environment compatibility.
 
 ---
 
@@ -98,8 +107,12 @@ exit
 
 - Node.js 18 or higher
 - A running Android emulator (AVD)
-- ADB installed and available in system PATH
+- Android Debug Bridge (ADB) installed and available in system PATH
 - OpenAI Tier 3 access for the computer-use-preview model
+
+> [!NOTE]  
+> Your OpenAI account must be **Tier 3** to access the computer-use-preview model.  
+> Learn more: [OpenAI Computer Use Preview](https://platform.openai.com/docs/models/computer-use-preview)
 
 ---
 
@@ -116,5 +129,5 @@ exit
 
 ## ✅ Summary
 
-**droid-cua** is a lightweight project that bridges OpenAI's computer-use-preview model to real Android devices using Node.js and ADB.  
-Just pure, direct interaction with Android emulators — controlled by AI.
+**droid-cua** is a lightweight project that bridges OpenAI's computer-use-preview model to real Android devices using Node.js.  
+Just direct control of Android devices, powered by AI.
