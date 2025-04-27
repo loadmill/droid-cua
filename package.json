@@ -1,0 +1,28 @@
+{
+  "name": "droid-cua",
+  "version": "0.1.0",
+  "description": "A minimal AI agent that uses ADB to control Android emulators with OpenAI’s computer-use model.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "openai",
+    "adb",
+    "android",
+    "automation",
+    "ai",
+    "emulator",
+    "agent",
+    "cua"
+  ],
+  "author": "Ido Cohen",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "minimist": "^1.2.8",
+    "openai": "^4.87.3",
+    "sharp": "^0.34.1"
+  }
+}
