@@ -29,13 +29,9 @@
    echo "OPENAI_API_KEY=your-api-key" > .env
    ```
 
-3. Make sure ADB is available in your system PATH:
+3. Make sure Android Debug Bridge (ADB) is available in your system PATH:
    ```sh
    adb version
-   ```
-   If not, you may need to link it manually (example for macOS):
-   ```sh
-   sudo ln -s ~/Library/Android/sdk/platform-tools/adb /usr/local/bin/adb
    ```
 
 4. Start your Android emulator manually (optional):
