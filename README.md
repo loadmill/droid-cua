@@ -2,6 +2,8 @@
 
 **Minimal AI agent that controls Android devices using OpenAI’s computer-use-preview model.**
 
+https://github.com/user-attachments/assets/ca06a0f3-25be-4bed-8848-b3aeb60ea3c5
+
 ---
 
 ## 🚀 How It Works
