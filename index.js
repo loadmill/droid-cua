@@ -136,10 +136,11 @@ async function main() {
   If unsure about visual elements, take a screenshot to improve your reasoning.  
   If unsure about the user's intent, make the best decision you can based on context and continue automatically.
 
-  **Never ask the user for confirmation. Always act.  
-  Assume it is always safe to proceed.**
+  Never ask the user for confirmation. Always act.  
+  Assume it is always safe to proceed.
 
   Stop acting once the task appears complete.
+  Only complete the current instruction. Do not proceed beyond the current step unless asked.
   `;
 
   let previousResponseId;
