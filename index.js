@@ -5,6 +5,8 @@ import { connectToDevice, getScreenshotAsBase64, getDeviceInfo } from "./device.
 import { sendCUARequest } from "./openai.js";
 import { handleModelAction } from "./actions.js";
 
+const transcript = [];
+
 const args = minimist(process.argv.slice(2));
 const avdName = args["avd"];
 const instructionsFile = args.instructions || args.i || null;
@@ -37,13 +39,17 @@ async function runFullTurn(response, deviceId, deviceInfo) {
       if (item.type === "reasoning") {
         for (const entry of item.summary) {
           if (entry.type === "summary_text") {
-            console.log("[Reasoning]", entry.text);
+            const line = `[Reasoning] ${entry.text}`;
+            console.log(line);
+            transcript.push(line);
           }
         }
       } else if (item.type === "message") {
         const textPart = item.content.find(c => c.type === "output_text");
         if (textPart) {
-          console.log("[Message]", textPart.text);
+          const line = `[Assistant] ${textPart.text}`;
+          console.log(line);
+          transcript.push(line);
         }
       }
     }
@@ -153,19 +159,35 @@ async function main() {
       process.exit(0);
     }
 
+    transcript.push(`[User] ${userInput}`);
     messages.push({ role: "user", content: userInput });
 
-    const screenshotBase64 = await getScreenshotAsBase64(deviceId, deviceInfo.scale);
+    try {
+      const screenshotBase64 = await getScreenshotAsBase64(deviceId, deviceInfo.scale);
 
-    const response = await sendCUARequest({
-      messages,
-      screenshotBase64,
-      previousResponseId,
-      deviceInfo,
-    });
+      const response = await sendCUARequest({
+        messages,
+        screenshotBase64,
+        previousResponseId,
+        deviceInfo,
+      });
 
-    previousResponseId = await runFullTurn(response, deviceId, deviceInfo);
-    messages = [];
+      previousResponseId = await runFullTurn(response, deviceId, deviceInfo);
+      messages = [];
+    } catch (err) {
+      console.log("⚠️ OpenAI request failed. Resetting context and trying again.");
+
+      const summary = `The last session failed. Let's try again based on the last user message. 
+      Here's a transcript of everything that happened so far:
+      \n\n${transcript.join("\n")}\n\n${initialSystemText}`;
+
+      messages = [
+        { role: "system", content: summary },
+      ];
+
+      instructions.unshift(userInput); // Re-queue the last command
+      previousResponseId = undefined;
+    }
   }
 }
 
