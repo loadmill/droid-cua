@@ -62,10 +62,11 @@ https://github.com/user-attachments/assets/ca06a0f3-25be-4bed-8848-b3aeb60ea3c5
 
 ## 📄 Command Line Flags
 
-| Flag | Description |
-|:-----|:------------|
-| `--avd=AVD_NAME` | Select the emulator device by AVD name. |
-| `--instructions=FILENAME` | Load user instructions from a text file. |
+| Flag                      | Description                                                             |
+| :------------------------ | :---------------------------------------------------------------------- |
+| `--avd=AVD_NAME`          | Select the emulator device by AVD name.                                 |
+| `--instructions=FILENAME` | Load user instructions from a text file.                                |
+| `--record`                | Save every screenshot into a folder for later review or video creation. |
 
 ---
 
@@ -121,11 +122,22 @@ exit
 | `index.js`   | Manages user input, OpenAI conversation, and main loop. |
 | `device.js`  | ADB device connection, screenshot capture, screen size management. |
 | `actions.js` | Executes model actions on the device (tap, swipe, drag, type, keypress). |
-| `openai.js`  | Sends requests to OpenAI and manages API responses. |
+| `openai.js`  | Sends requests to OpenAI and manages API responses.|
 
 ---
 
-## ✅ Summary
+## 🎞️ Convert Screenshots to Video (Optional)
 
-**droid-cua** is a lightweight project that bridges OpenAI's computer-use-preview model to real Android devices using Node.js.  
-Just direct control of Android devices, powered by AI.
+If you run the agent with the `--record` flag, it saves all screenshots to a folder like:
+
+```
+droid-cua-recording-1715098765432/
+```
+
+You can convert the frames into a video using `ffmpeg`:
+
+```sh
+ffmpeg -framerate 1 -pattern_type glob -i 'droid-cua-recording-*/frame_*.png' \
+  -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
+  -c:v libx264 -pix_fmt yuv420p session.mp4
+```

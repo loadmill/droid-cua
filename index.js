@@ -1,6 +1,7 @@
 import minimist from "minimist";
+import path from "path";
 import readline from "readline/promises";
-import { readFile } from "fs/promises";
+import { readFile, writeFile, mkdir } from "fs/promises";
 import { connectToDevice, getScreenshotAsBase64, getDeviceInfo } from "./device.js";
 import { sendCUARequest } from "./openai.js";
 import { handleModelAction } from "./actions.js";
@@ -9,12 +10,16 @@ const transcript = [];
 
 const args = minimist(process.argv.slice(2));
 const avdName = args["avd"];
+const recordScreenshots = args["record"] || false;
 const instructionsFile = args.instructions || args.i || null;
 
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
 });
+
+const screenshotDir = path.join("droid-cua-recording-" + Date.now());
+if (recordScreenshots) await mkdir(screenshotDir, { recursive: true });
 
 async function promptUser() {
   return (await rl.question("> ")).trim();
@@ -28,7 +33,6 @@ async function loadInstructionsFile(file) {
 
 async function runFullTurn(response, deviceId, deviceInfo) {
   let newResponseId = response.id;
-  let pendingItems = []; // Items to carry over if needed
 
   while (true) {
     const items = response.output || [];
@@ -69,15 +73,13 @@ async function runFullTurn(response, deviceId, deviceInfo) {
 
       const screenshotBase64 = await getScreenshotAsBase64(deviceId, deviceInfo.scale);
 
-      // Build next input: screenshot + any carryover reasoning
-      const input = [];
-
-      if (pendingItems.length > 0) {
-        input.push(...pendingItems);
-        pendingItems = []; // Clear after using
+      if (recordScreenshots) {
+        const framePath = path.join(screenshotDir, `frame_${String(Date.now())}.png`);
+        await writeFile(framePath, Buffer.from(screenshotBase64, "base64"));
       }
 
-      input.push({
+      // Build next input: screenshot + any carryover reasoning
+      const input = [{
         type: "computer_call_output",
         call_id,
         output: {
@@ -85,7 +87,7 @@ async function runFullTurn(response, deviceId, deviceInfo) {
           image_url: `data:image/png;base64,${screenshotBase64}`,
         },
         ...(pending_safety_checks?.length > 0 ? { acknowledged_safety_checks: pending_safety_checks } : {})
-      });
+      }];
 
       response = await sendCUARequest({
         messages: input,
