@@ -1,5 +1,5 @@
 import minimist from "minimist";
-import readline from "readline";
+import readline from "readline/promises";
 import { readFile } from "fs/promises";
 import { connectToDevice, getScreenshotAsBase64, getDeviceInfo } from "./device.js";
 import { sendCUARequest } from "./openai.js";
@@ -16,8 +16,8 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-function promptUser() {
-  return new Promise(resolve => rl.question("> ", resolve));
+async function promptUser() {
+  return (await rl.question("> ")).trim();
 }
 
 async function loadInstructionsFile(file) {
