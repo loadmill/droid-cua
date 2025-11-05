@@ -101,7 +101,7 @@ export async function getDeviceInfo(deviceId) {
   };
 }
 
-export async function getScreenshotAsBase64(deviceId, scale = 1.0) {
+export async function getScreenshotAsBase64(deviceId, deviceInfo) {
   const adb = spawn("adb", ["-s", deviceId, "exec-out", "screencap", "-p"]);
   const chunks = [];
 
@@ -116,9 +116,9 @@ export async function getScreenshotAsBase64(deviceId, scale = 1.0) {
 
   let buffer = Buffer.concat(chunks);
 
-  if (scale < 1.0) {
+  if (deviceInfo.scale < 1.0) {
     buffer = await sharp(buffer)
-      .resize({ width: Math.round(1080 * scale) })
+      .resize({ width: deviceInfo.scaled_width, height: deviceInfo.scaled_height})
       .png()
       .toBuffer();
   }

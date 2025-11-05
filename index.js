@@ -71,7 +71,7 @@ async function runFullTurn(response, deviceId, deviceInfo) {
         await handleModelAction(deviceId, action, deviceInfo.scale);
       }
 
-      const screenshotBase64 = await getScreenshotAsBase64(deviceId, deviceInfo.scale);
+      const screenshotBase64 = await getScreenshotAsBase64(deviceId, deviceInfo);
 
       if (recordScreenshots) {
         const framePath = path.join(screenshotDir, `frame_${String(Date.now())}.png`);
@@ -166,7 +166,7 @@ async function main() {
     messages.push({ role: "user", content: userInput });
 
     try {
-      const screenshotBase64 = await getScreenshotAsBase64(deviceId, deviceInfo.scale);
+      const screenshotBase64 = await getScreenshotAsBase64(deviceId, deviceInfo);
 
       const response = await sendCUARequest({
         messages,
