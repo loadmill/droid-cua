@@ -90,13 +90,30 @@ Run with an instructions file:
 node index.js --avd=Pixel_5_API_34 --instructions=example.txt
 ```
 
-Example `example.txt`:
+---
+
+## ✅ Assertions
+
+Assertions allow you to validate the state of the device during script execution. If an assertion fails, the script stops and reports the failure.
+
+### Syntax
+
+Add assertions to your script using the `assert` keyword (case-insensitive, colon optional):
 
 ```
-Open Chrome
-Search for "Loadmill"
-Scroll down
-Go back to the home screen
+assert: <condition to validate>
+```
+
+## Example Script 
+
+```
+Open the Calculator app
+assert: the Calculator app is open
+Type "5"
+Click the plus button
+Type "3"
+Click the equals button
+Assert the result shows 8
 exit
 ```
 
@@ -117,12 +134,13 @@ exit
 
 ## 📁 Project Structure
 
-| File         | Responsibility |
-|--------------|-----------------|
-| `index.js`   | Manages user input, OpenAI conversation, and main loop. |
-| `device.js`  | ADB device connection, screenshot capture, screen size management. |
-| `actions.js` | Executes model actions on the device (tap, swipe, drag, type, keypress). |
-| `openai.js`  | Sends requests to OpenAI and manages API responses.|
+| File            | Responsibility |
+|-----------------|-----------------|
+| `index.js`      | Manages user input, OpenAI conversation, and main loop. |
+| `device.js`     | ADB device connection, screenshot capture, screen size management. |
+| `actions.js`    | Executes model actions on the device (tap, swipe, drag, type, keypress). |
+| `assertions.js` | Handles assertion validation, result checking, and failure reporting. |
+| `openai.js`     | Sends requests to OpenAI and manages API responses.|
 
 ---
 

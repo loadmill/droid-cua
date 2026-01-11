@@ -5,6 +5,14 @@ import { readFile, writeFile, mkdir } from "fs/promises";
 import { connectToDevice, getScreenshotAsBase64, getDeviceInfo } from "./device.js";
 import { sendCUARequest } from "./openai.js";
 import { handleModelAction } from "./actions.js";
+import {
+  isAssertion,
+  extractAssertionPrompt,
+  buildAssertionSystemPrompt,
+  checkAssertionResult,
+  handleAssertionFailure,
+  handleAssertionSuccess,
+} from "./assertions.js";
 
 const transcript = [];
 
@@ -162,8 +170,21 @@ async function main() {
       process.exit(0);
     }
 
-    transcript.push(`[User] ${userInput}`);
-    messages.push({ role: "user", content: userInput });
+    // ── Check for assertion ──
+    const isAssertionStep = isAssertion(userInput);
+    let assertionPrompt = null;
+
+    if (isAssertionStep) {
+      assertionPrompt = extractAssertionPrompt(userInput);
+      const assertionSystemPrompt = buildAssertionSystemPrompt(initialSystemText, assertionPrompt);
+
+      messages = [{ role: "system", content: assertionSystemPrompt }];
+      transcript.push(`[Assertion] ${assertionPrompt}`);
+      messages.push({ role: "user", content: `Validate this assertion: ${assertionPrompt}` });
+    } else {
+      transcript.push(`[User] ${userInput}`);
+      messages.push({ role: "user", content: userInput });
+    }
 
     try {
       const screenshotBase64 = await getScreenshotAsBase64(deviceId, deviceInfo);
@@ -176,11 +197,27 @@ async function main() {
       });
 
       previousResponseId = await runFullTurn(response, deviceId, deviceInfo);
+
+      // ── Check assertion result ──
+      if (isAssertionStep) {
+        const result = checkAssertionResult(transcript);
+
+        if (result.failed) {
+          handleAssertionFailure(assertionPrompt, transcript, !!instructionsFile, rl);
+          // Interactive mode: clear remaining instructions (stops script but keeps CLI alive)
+          if (!instructionsFile) {
+            instructions.length = 0;
+          }
+        } else if (result.passed) {
+          handleAssertionSuccess(assertionPrompt);
+        }
+      }
+
       messages = [];
     } catch (err) {
       console.log("⚠️ OpenAI request failed. Resetting context and trying again.");
 
-      const summary = `The last session failed. Let's try again based on the last user message. 
+      const summary = `The last session failed. Let's try again based on the last user message.
       Here's a transcript of everything that happened so far:
       \n\n${transcript.join("\n")}\n\n${initialSystemText}`;
 

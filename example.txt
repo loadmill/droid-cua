@@ -1,5 +1,9 @@
 Open Chrome
-Search for "Loadmill"
-Scroll down
-Go back to the home screen
+Open a new tab
+Open the Google built-in Calculator by searching "calculator"
+Type "5"
+Click the plus button
+Type "3"
+Click the equals button
+assert: the result shows 8
 exit
