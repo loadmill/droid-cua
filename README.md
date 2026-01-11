@@ -87,7 +87,7 @@ node index.js --avd=Pixel_5_API_34
 Run with an instructions file:
 
 ```sh
-node index.js --avd=Pixel_5_API_34 --instructions=tests/example.txt
+node index.js --avd=Pixel_5_API_34 --instructions=tests/example.dcua
 ```
 
 ---
@@ -139,7 +139,7 @@ exit
 | `index.js`     | Main entry point and control loop. |
 | `src/core/`    | Execution engine, session management, system prompts. |
 | `src/device/`  | ADB device connection, actions, assertions, OpenAI client. |
-| `tests/`       | Test script files (*.txt). |
+| `tests/`       | Test script files (*.dcua). |
 
 ---
 
