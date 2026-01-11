@@ -15,6 +15,8 @@ import {
 import { Session } from "./src/core/session.js";
 import { ExecutionEngine } from "./src/core/execution-engine.js";
 import { buildBaseSystemPrompt } from "./src/core/prompts.js";
+import { parseInput } from "./src/cli/command-parser.js";
+import { routeCommand } from "./src/commands/index.js";
 
 const args = minimist(process.argv.slice(2));
 const avdName = args["avd"];
@@ -67,17 +69,33 @@ async function main() {
       userInput = await promptUser();
     }
 
-    if (userInput.toLowerCase() === "exit") {
+    // Parse input to check if it's a command or instruction
+    const parsed = parseInput(userInput);
+
+    // ── Handle slash commands ──
+    if (parsed.type === 'command') {
+      const shouldContinue = await routeCommand(parsed.command, parsed.args, session, { rl });
+      if (!shouldContinue) {
+        break; // Exit main loop
+      }
+      continue; // Go to next input
+    }
+
+    // ── Handle regular instructions ──
+    const instruction = parsed.text;
+
+    // Check for old-style "exit" (backward compatibility)
+    if (instruction.toLowerCase() === "exit") {
       rl.close();
       process.exit(0);
     }
 
     // ── Check for assertion ──
-    const isAssertionStep = isAssertion(userInput);
+    const isAssertionStep = isAssertion(instruction);
     let assertionPrompt = null;
 
     if (isAssertionStep) {
-      assertionPrompt = extractAssertionPrompt(userInput);
+      assertionPrompt = extractAssertionPrompt(instruction);
       const assertionSystemPrompt = buildAssertionSystemPrompt(initialSystemText, assertionPrompt);
 
       session.clearMessages();
@@ -85,8 +103,8 @@ async function main() {
       session.addToTranscript(`[Assertion] ${assertionPrompt}`);
       session.addMessage("user", `Validate this assertion: ${assertionPrompt}`);
     } else {
-      session.addToTranscript(`[User] ${userInput}`);
-      session.addMessage("user", userInput);
+      session.addToTranscript(`[User] ${instruction}`);
+      session.addMessage("user", instruction);
     }
 
     try {
@@ -128,7 +146,7 @@ async function main() {
       session.clearMessages();
       session.addMessage("system", summary);
 
-      instructions.unshift(userInput); // Re-queue the last command
+      instructions.unshift(instruction); // Re-queue the last instruction
       session.updateResponseId(undefined);
     }
   }
