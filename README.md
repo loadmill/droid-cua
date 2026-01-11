@@ -87,7 +87,7 @@ node index.js --avd=Pixel_5_API_34
 Run with an instructions file:
 
 ```sh
-node index.js --avd=Pixel_5_API_34 --instructions=example.txt
+node index.js --avd=Pixel_5_API_34 --instructions=tests/example.txt
 ```
 
 ---
@@ -134,13 +134,12 @@ exit
 
 ## 📁 Project Structure
 
-| File            | Responsibility |
-|-----------------|-----------------|
-| `index.js`      | Manages user input, OpenAI conversation, and main loop. |
-| `device.js`     | ADB device connection, screenshot capture, screen size management. |
-| `actions.js`    | Executes model actions on the device (tap, swipe, drag, type, keypress). |
-| `assertions.js` | Handles assertion validation, result checking, and failure reporting. |
-| `openai.js`     | Sends requests to OpenAI and manages API responses.|
+| Directory/File | Responsibility |
+|----------------|-----------------|
+| `index.js`     | Main entry point and control loop. |
+| `src/core/`    | Execution engine, session management, system prompts. |
+| `src/device/`  | ADB device connection, actions, assertions, OpenAI client. |
+| `tests/`       | Test script files (*.txt). |
 
 ---
 
