@@ -5,6 +5,7 @@
 import { handleHelp } from './help.js';
 import { handleExit } from './exit.js';
 import { handleRun } from './run.js';
+import { handleCreate } from './create.js';
 
 /**
  * Map of command names to their handlers
@@ -14,8 +15,8 @@ const COMMAND_HANDLERS = {
   help: handleHelp,
   exit: handleExit,
   run: handleRun,
+  create: handleCreate,
   // Placeholders for future phases:
-  // create: handleCreate,
   // list: handleList,
   // view: handleView,
   // edit: handleEdit,

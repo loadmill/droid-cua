@@ -15,11 +15,21 @@ export class ExecutionEngine {
    * Run a full turn with the CUA model
    * Executes actions until the model stops requesting actions
    * Returns the new response ID for chaining
+   * @param {Object} response - The CUA response
+   * @param {Function} trackAction - Optional callback to track actions for stuck detection
    */
-  async runFullTurn(response) {
+  async runFullTurn(response, trackAction = null) {
     let newResponseId = response.id;
 
     while (true) {
+      // Check for interruption before processing next batch of actions
+      if (trackAction) {
+        const shouldStop = trackAction(null); // null action = pre-batch check
+        if (shouldStop) {
+          return newResponseId;
+        }
+      }
+
       const items = response.output || [];
       const actions = items.filter(item => item.type === "computer_call");
 
@@ -54,6 +64,15 @@ export class ExecutionEngine {
           console.log("Model requested screenshot.");
         } else {
           await handleModelAction(this.session.deviceId, action, this.session.deviceInfo.scale);
+
+          // Track action and check for interruption
+          if (trackAction) {
+            const shouldStop = trackAction(action);
+            if (shouldStop) {
+              // User interrupted - stop execution immediately
+              return newResponseId;
+            }
+          }
         }
 
         const screenshotBase64 = await getScreenshotAsBase64(

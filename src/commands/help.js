@@ -16,9 +16,9 @@ droid-cua - AI-powered Android testing CLI
 Available commands:
   /help                    Show this help message
   /exit                    Exit the CLI
+  /create <test-name>      Create a new test (autonomous design mode)
   /run <test-name>         Run an existing test
 
-  /create <test-name>      Create a new test (coming soon)
   /list                    List all tests (coming soon)
   /view <test-name>        View test contents (coming soon)
   /edit <test-name>        Edit a test (coming soon)
@@ -27,9 +27,9 @@ Current mode: Direct execution
 You can type natural language instructions to control the device.
 
 Examples:
-  > Open Chrome
-  > assert: Chrome is visible
-  > /run example
+  > /create my-test        (agent explores and generates test)
+  > /run example           (execute saved test)
+  > Open Chrome            (direct instruction)
 
 For more info, see README.md
   `);
