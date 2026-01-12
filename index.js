@@ -74,7 +74,7 @@ async function main() {
 
     // ── Handle slash commands ──
     if (parsed.type === 'command') {
-      const shouldContinue = await routeCommand(parsed.command, parsed.args, session, { rl });
+      const shouldContinue = await routeCommand(parsed.command, parsed.args, session, { rl, engine });
       if (!shouldContinue) {
         break; // Exit main loop
       }

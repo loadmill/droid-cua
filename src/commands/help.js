@@ -16,9 +16,9 @@ droid-cua - AI-powered Android testing CLI
 Available commands:
   /help                    Show this help message
   /exit                    Exit the CLI
+  /run <test-name>         Run an existing test
 
   /create <test-name>      Create a new test (coming soon)
-  /run <test-name>         Run an existing test (coming soon)
   /list                    List all tests (coming soon)
   /view <test-name>        View test contents (coming soon)
   /edit <test-name>        Edit a test (coming soon)
@@ -29,7 +29,7 @@ You can type natural language instructions to control the device.
 Examples:
   > Open Chrome
   > assert: Chrome is visible
-  > Type "hello world" in the search bar
+  > /run example
 
 For more info, see README.md
   `);
