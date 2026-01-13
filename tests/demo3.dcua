@@ -1,0 +1,6 @@
+Open the Chrome app
+Click on the search bar
+Type "weather in Tel Aviv"
+Press Enter
+assert: Temperature is displayed in Celsius
+exit

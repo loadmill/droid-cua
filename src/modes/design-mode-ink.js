@@ -386,6 +386,12 @@ export class DesignModeInk {
    * Cleanup when exiting design mode
    */
   cleanup() {
+    // Clear design mode reference from context FIRST
+    // (unconditionally, since this design mode is exiting)
+    if (this.context.setActiveDesignMode) {
+      this.context.setActiveDesignMode(null);
+    }
+
     // Reset mode
     if (this.context.setMode) {
       this.context.setMode('command');
@@ -398,13 +404,6 @@ export class DesignModeInk {
     }
     if (this.context.setInputPlaceholder) {
       this.context.setInputPlaceholder('Type a command or message...');
-    }
-
-    // Clear design mode reference from context
-    if (this.context.activeDesignMode === this) {
-      if (this.context.setActiveDesignMode) {
-        this.context.setActiveDesignMode(null);
-      }
     }
   }
 }
