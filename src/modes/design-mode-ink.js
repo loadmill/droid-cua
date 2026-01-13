@@ -402,7 +402,9 @@ export class DesignModeInk {
 
     // Clear design mode reference from context
     if (this.context.activeDesignMode === this) {
-      this.context.activeDesignMode = null;
+      if (this.context.setActiveDesignMode) {
+        this.context.setActiveDesignMode(null);
+      }
     }
   }
 }

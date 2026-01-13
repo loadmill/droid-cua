@@ -16,6 +16,7 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
   const [agentMessage, setAgentMessage] = useState('');
   const [inputDisabled, setInputDisabled] = useState(false);
   const [inputPlaceholder, setInputPlaceholder] = useState('Type a command or message...');
+  const [activeDesignMode, setActiveDesignMode] = useState(null);
 
   // Context object passed to modes and commands
   const context = {
@@ -46,7 +47,8 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
     session,
 
     // Design mode reference (for routing inputs)
-    activeDesignMode: null,
+    activeDesignMode: activeDesignMode,
+    setActiveDesignMode: (mode) => setActiveDesignMode(mode),
 
     // Exit
     exit: () => {

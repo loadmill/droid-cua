@@ -38,7 +38,9 @@ export async function handleCreate(args, session, context) {
   const designMode = new DesignModeInk(session, context.engine, testName, context);
 
   // Store reference in context so ink-shell can route inputs to it
-  context.activeDesignMode = designMode;
+  if (context.setActiveDesignMode) {
+    context.setActiveDesignMode(designMode);
+  }
 
   // Start design mode conversation
   await designMode.start();
