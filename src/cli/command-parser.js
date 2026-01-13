@@ -45,11 +45,11 @@ export function parseInput(input) {
 export const COMMANDS = {
   help: 'Show available commands',
   exit: 'Exit the CLI',
-  create: 'Create a new test script',
-  run: 'Run an existing test script',
-  list: 'List all test scripts',
-  view: 'View a test script',
-  edit: 'Edit a test script',
+  create: 'Create a new test with autonomous design',
+  run: 'Execute an existing test',
+  list: 'List all available tests',
+  view: 'View test contents with line numbers',
+  edit: 'Edit a test in your default editor',
 };
 
 /**

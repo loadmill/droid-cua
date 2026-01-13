@@ -17,15 +17,19 @@ export async function handleHelp(args, session, context) {
   addOutput({ type: 'info', text: 'Available commands:' });
   addOutput({ type: 'info', text: '  /help                    Show this help message' });
   addOutput({ type: 'info', text: '  /exit                    Exit the CLI' });
-  addOutput({ type: 'info', text: '  /create <test-name>      Create a new test (autonomous design mode - coming soon)' });
-  addOutput({ type: 'info', text: '  /run <test-name>         Run an existing test' });
   addOutput({ type: 'info', text: '' });
-  addOutput({ type: 'info', text: '  /list                    List all tests (coming soon)' });
-  addOutput({ type: 'info', text: '  /view <test-name>        View test contents (coming soon)' });
-  addOutput({ type: 'info', text: '  /edit <test-name>        Edit a test (coming soon)' });
+  addOutput({ type: 'info', text: 'Test Management:' });
+  addOutput({ type: 'info', text: '  /create <test-name>      Create a new test with autonomous design' });
+  addOutput({ type: 'info', text: '  /run <test-name>         Execute an existing test' });
+  addOutput({ type: 'info', text: '  /list                    List all available tests' });
+  addOutput({ type: 'info', text: '  /view <test-name>        View test contents with line numbers' });
+  addOutput({ type: 'info', text: '  /edit <test-name>        Edit a test in your default editor' });
   addOutput({ type: 'info', text: '' });
   addOutput({ type: 'info', text: 'Examples:' });
-  addOutput({ type: 'info', text: '  /run example           (execute saved test)' });
+  addOutput({ type: 'info', text: '  /create login-test       (design a new test)' });
+  addOutput({ type: 'info', text: '  /list                    (see all tests)' });
+  addOutput({ type: 'info', text: '  /view login-test         (view test contents)' });
+  addOutput({ type: 'info', text: '  /run login-test          (execute test)' });
   addOutput({ type: 'info', text: '' });
   addOutput({ type: 'info', text: 'For more info, see README.md' });
 

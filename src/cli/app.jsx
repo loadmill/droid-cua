@@ -70,12 +70,20 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
     }
   }, [context]);
 
-  // Show welcome message on mount
+  // Show welcome banner on mount
   useEffect(() => {
-    context.addOutput({
-      type: 'system',
-      text: 'Welcome to droid-cua! Type /help for available commands.',
-    });
+    const banner = `
+     _           _     _
+  __| |_ __ ___ (_) __| |      ___ _   _  __ _
+ / _\` | '__/ _ \\| |/ _\` |____ / __| | | |/ _\` |
+| (_| | | | (_) | | (_| |____| (__| |_| | (_| |
+ \\__,_|_|  \\___/|_|\\__,_|     \\___|\\__,_|\\__,_|
+
+AI-powered Android testing CLI
+`;
+    context.addOutput({ type: 'system', text: banner });
+    context.addOutput({ type: 'info', text: 'Type /help for available commands.' });
+    context.addOutput({ type: 'info', text: '' });
   }, []); // Empty deps = run once on mount
 
   const handleInput = async (input) => {
