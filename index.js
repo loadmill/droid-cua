@@ -8,11 +8,16 @@ import { buildBaseSystemPrompt } from "./src/core/prompts.js";
 import { startInkShell } from "./src/cli/ink-shell.jsx";
 import { loadTest } from "./src/test-store/test-manager.js";
 import { ExecutionMode } from "./src/modes/execution-mode.js";
+import { logger } from "./src/utils/logger.js";
 
 const args = minimist(process.argv.slice(2));
 const avdName = args["avd"];
 const recordScreenshots = args["record"] || false;
 const instructionsFile = args.instructions || args.i || null;
+const debugMode = args["debug"] || false;
+
+// Initialize debug logging
+await logger.init(debugMode);
 
 const screenshotDir = path.join("droid-cua-recording-" + Date.now());
 if (recordScreenshots) await mkdir(screenshotDir, { recursive: true });

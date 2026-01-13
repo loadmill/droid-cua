@@ -8,6 +8,7 @@ import {
   handleAssertionFailure,
   handleAssertionSuccess,
 } from "../device/assertions.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Execution Mode - Run test scripts line-by-line
@@ -20,6 +21,7 @@ export class ExecutionMode {
     this.instructions = instructions; // Array of instruction strings
     this.initialSystemText = session.systemPrompt;
     this.isHeadlessMode = true; // Execution mode is always considered "headless" for assertions
+    this.shouldStop = false; // Flag to stop execution (set by /stop command)
   }
 
   /**
@@ -31,6 +33,12 @@ export class ExecutionMode {
     const addOutput = context.addOutput || ((item) => console.log(item.text || item));
 
     for (let i = 0; i < this.instructions.length; i++) {
+      // Check if execution should be stopped
+      if (this.shouldStop) {
+        addOutput({ type: 'info', text: 'Test execution stopped by user.' });
+        return { success: false, error: 'Stopped by user' };
+      }
+
       const instruction = this.instructions[i];
       addOutput({ type: 'user', text: instruction });
 
@@ -46,8 +54,21 @@ export class ExecutionMode {
           return result; // Propagate failure
         }
       } catch (err) {
+        // Log full error details to file
+        logger.error('Execution mode error', {
+          instruction,
+          message: err.message,
+          status: err.status,
+          code: err.code,
+          type: err.type,
+          error: err.error,
+          stack: err.stack
+        });
+
+        // Show user-friendly error message
         addOutput({ type: 'error', text: `Error executing instruction: ${instruction}` });
         addOutput({ type: 'error', text: err.message });
+        addOutput({ type: 'info', text: 'Full error details have been logged to the debug log.' });
         return { success: false, error: err.message };
       }
     }
@@ -120,6 +141,17 @@ export class ExecutionMode {
       this.session.clearMessages();
       return { success: true };
     } catch (err) {
+      // Log full error details to file
+      logger.error('Execution instruction error (will retry)', {
+        instruction,
+        message: err.message,
+        status: err.status,
+        code: err.code,
+        type: err.type,
+        error: err.error,
+        stack: err.stack
+      });
+
       const addOutput = context.addOutput || ((item) => console.log(item.text || item));
       addOutput({ type: 'info', text: 'Connection issue. Retrying...' });
 

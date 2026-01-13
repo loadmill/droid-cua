@@ -35,6 +35,11 @@ export class ExecutionEngine {
       const items = response.output || [];
       const actions = items.filter(item => item.type === "computer_call");
 
+      // ── Collect pending safety checks ──
+      const pendingSafetyChecks = items
+        .filter(item => item.type === "pending_safety_check")
+        .map(item => ({ id: item.id }));
+
       // ── Print assistant output ──
       for (const item of items) {
         if (item.type === "reasoning") {
@@ -50,6 +55,8 @@ export class ExecutionEngine {
             addOutput({ type: 'assistant', text: textPart.text });
             this.session.addToTranscript(`[Assistant] ${textPart.text}`);
           }
+        } else if (item.type === "pending_safety_check") {
+          addOutput({ type: 'warning', text: `⚠️ Safety check: ${item.code} - ${item.message}` });
         }
       }
 
@@ -59,7 +66,7 @@ export class ExecutionEngine {
       }
 
       // ── Process model actions ──
-      for (const { action, call_id, pending_safety_checks } of actions) {
+      for (const { action, call_id } of actions) {
         if (action.type === "screenshot") {
           addOutput({ type: 'info', text: '📸 Capturing screen' });
         } else {
@@ -99,7 +106,8 @@ export class ExecutionEngine {
             type: "computer_screenshot",
             image_url: `data:image/png;base64,${screenshotBase64}`,
           },
-          ...(pending_safety_checks?.length > 0 ? { acknowledged_safety_checks: pending_safety_checks } : {})
+          current_url: "android://emulator", // Android emulator doesn't have URLs like a browser
+          ...(pendingSafetyChecks.length > 0 ? { acknowledged_safety_checks: pendingSafetyChecks } : {})
         }];
 
         response = await sendCUARequest({

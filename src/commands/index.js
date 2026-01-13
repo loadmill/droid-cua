@@ -9,6 +9,7 @@ import { handleCreate } from './create.js';
 import { handleList } from './list.js';
 import { handleView } from './view.js';
 import { handleEdit } from './edit.js';
+import { handleStop } from './stop.js';
 
 /**
  * Map of command names to their handlers
@@ -22,6 +23,7 @@ const COMMAND_HANDLERS = {
   list: handleList,
   view: handleView,
   edit: handleEdit,
+  stop: handleStop,
 };
 
 /**

@@ -3,6 +3,7 @@ import { getScreenshotAsBase64 } from "../device/connection.js";
 import { sendCUARequest } from "../device/openai.js";
 import { buildDesignModePrompt } from "../core/prompts.js";
 import { saveTest } from "../test-store/test-manager.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Design Mode - Interactive test design with autonomous exploration
@@ -54,20 +55,20 @@ export class DesignMode {
    * Check if agent appears stuck (repeated similar actions)
    */
   checkIfStuck() {
-    if (this.recentActions.length < 6) return false;
+    if (this.recentActions.length < 10) return false;
 
-    // Get last 6 actions
-    const last6 = this.recentActions.slice(-6);
+    // Get last 10 actions
+    const last10 = this.recentActions.slice(-10);
 
     // Count action types
     const actionCounts = {};
-    for (const action of last6) {
+    for (const action of last10) {
       actionCounts[action] = (actionCounts[action] || 0) + 1;
     }
 
-    // If any single action type appears 4+ times in last 6 actions, we're stuck
+    // If any single action type appears 6+ times in last 10 actions, we're stuck
     const maxRepeats = Math.max(...Object.values(actionCounts));
-    return maxRepeats >= 4;
+    return maxRepeats >= 6;
   }
 
   /**
@@ -76,6 +77,12 @@ export class DesignMode {
   trackAction(action) {
     // Simplify action to key type (click, type, scroll, wait, key)
     let actionType = action.type;
+
+    // Exclude scroll from repeat detection (scrolling long pages is normal)
+    if (actionType === "scroll") {
+      return;
+    }
+
     if (actionType === "click") {
       actionType = "click";
     } else if (actionType === "type") {
@@ -324,12 +331,25 @@ export class DesignMode {
         // Ensure stdin is reset on error
         this.cleanupEscDetection(null);
 
+        // Log full error details to file
+        logger.error('Design mode error', {
+          message: err.message,
+          status: err.status,
+          code: err.code,
+          type: err.type,
+          error: err.error,
+          stack: err.stack
+        });
+
+        // Show user-friendly error message
         console.error("\n⚠️ Error in design mode:", err.message);
 
         if (err.message && err.message.includes("400")) {
           console.log("\nThis is likely due to conversation state becoming too complex.");
           console.log("I'll reset the conversation state and you can try again.");
         }
+
+        console.log("\nFull error details have been logged to the debug log.");
 
         const retry = await this.promptUser(
           context.rl,

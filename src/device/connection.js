@@ -2,6 +2,7 @@ import { exec, spawn } from "child_process";
 import { once } from "events";
 import { promisify } from "util";
 import sharp from "sharp";
+import { logger } from "../utils/logger.js";
 
 const execAsync = promisify(exec);
 
@@ -104,23 +105,37 @@ export async function getDeviceInfo(deviceId) {
 export async function getScreenshotAsBase64(deviceId, deviceInfo) {
   const adb = spawn("adb", ["-s", deviceId, "exec-out", "screencap", "-p"]);
   const chunks = [];
+  const stderrChunks = [];
 
   adb.stdout.on("data", chunk => chunks.push(chunk));
-  adb.stderr.on("data", err => console.error("ADB stderr:", err.toString()));
+  adb.stderr.on("data", err => {
+    stderrChunks.push(err);
+    console.error("ADB stderr:", err.toString());
+  });
 
   const [code] = await once(adb, "close");
 
   if (code !== 0) {
+    const stderrOutput = Buffer.concat(stderrChunks).toString();
+    logger.error(`ADB screencap failed with code ${code}`, { stderr: stderrOutput });
     throw new Error(`adb screencap exited with code ${code}`);
   }
 
   let buffer = Buffer.concat(chunks);
+
+  logger.debug(`Screenshot captured: ${buffer.length} bytes before scaling`);
+
+  if (buffer.length === 0) {
+    logger.error('Screenshot buffer is empty!', { deviceId, chunks: chunks.length });
+    throw new Error('Screenshot capture returned empty buffer');
+  }
 
   if (deviceInfo.scale < 1.0) {
     buffer = await sharp(buffer)
       .resize({ width: deviceInfo.scaled_width, height: deviceInfo.scaled_height})
       .png()
       .toBuffer();
+    logger.debug(`Screenshot scaled: ${buffer.length} bytes after scaling`);
   }
 
   return buffer.toString("base64");

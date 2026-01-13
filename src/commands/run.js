@@ -66,7 +66,7 @@ export async function handleRun(args, session, context) {
     context.setExecutionMode(true); // Signal we're in execution mode
   }
   if (context.setInputPlaceholder) {
-    context.setInputPlaceholder('Type /exit to stop test execution');
+    context.setInputPlaceholder('Type /stop or /exit to stop test execution');
   }
 
   // Set agent working status
@@ -74,8 +74,18 @@ export async function handleRun(args, session, context) {
     context.setAgentWorking(true, 'Executing test...');
   }
 
+  // Reset session state to prevent context leak from design mode
+  // Each test instruction should execute in isolation
+  session.updateResponseId(undefined);
+  session.clearMessages();
+
   // Create execution mode
   const executionMode = new ExecutionMode(session, context.engine, instructions);
+
+  // Store reference in context so /stop command can access it
+  if (context.setActiveExecutionMode) {
+    context.setActiveExecutionMode(executionMode);
+  }
 
   // Execute the test
   const result = await executionMode.execute(context);
@@ -83,6 +93,11 @@ export async function handleRun(args, session, context) {
   // Clear agent working status
   if (context.setAgentWorking) {
     context.setAgentWorking(false);
+  }
+
+  // Clear execution mode reference
+  if (context.setActiveExecutionMode) {
+    context.setActiveExecutionMode(null);
   }
 
   // Re-enable free-form input

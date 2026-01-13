@@ -19,6 +19,7 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
   const [inputDisabled, setInputDisabled] = useState(false);
   const [inputPlaceholder, setInputPlaceholder] = useState('Type a command or message...');
   const [activeDesignMode, setActiveDesignMode] = useState(null);
+  const [activeExecutionMode, setActiveExecutionMode] = useState(null);
   const [isExecutionMode, setIsExecutionMode] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
@@ -57,6 +58,10 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
     // Design mode reference (for routing inputs)
     activeDesignMode: activeDesignMode,
     setActiveDesignMode: (mode) => setActiveDesignMode(mode),
+
+    // Execution mode reference (for /stop command)
+    activeExecutionMode: activeExecutionMode,
+    setActiveExecutionMode: (mode) => setActiveExecutionMode(mode),
 
     // Exit
     exit: () => {

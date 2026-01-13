@@ -1,5 +1,6 @@
 import { exec } from "child_process";
 import { promisify } from "util";
+import { logger } from "../utils/logger.js";
 
 const execAsync = promisify(exec);
 
@@ -78,6 +79,15 @@ export async function handleModelAction(deviceId, action, scale = 1.0, context =
         addOutput({ type: 'info', text: `Unknown action: ${JSON.stringify(action)}` });
     }
   } catch (error) {
+    // Log full error details to file
+    logger.error('Action execution error', {
+      action,
+      message: error.message,
+      stack: error.stack
+    });
+
+    // Show user-friendly error message
     addOutput({ type: 'error', text: `Error executing action: ${error.message}` });
+    addOutput({ type: 'info', text: 'Full error details have been logged to the debug log.' });
   }
 }

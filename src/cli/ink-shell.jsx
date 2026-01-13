@@ -27,7 +27,7 @@ export async function startInkShell(session, executionEngine) {
     if (context.isExecutionMode && parsed.type !== 'command') {
       context.addOutput({
         type: 'error',
-        text: 'Cannot interrupt test execution with instructions. Use /exit to stop the test.',
+        text: 'Cannot interrupt test execution with instructions. Use /stop or /exit to stop the test.',
       });
       return;
     }
