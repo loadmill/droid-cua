@@ -14,6 +14,11 @@ export async function startInkShell(session, executionEngine) {
   let shouldExit = false;
 
   const handleInput = async (input, context) => {
+    // Check if there's an active design mode - route input to it
+    if (context.activeDesignMode) {
+      context.activeDesignMode.handleUserInput(input);
+      return;
+    }
 
     // Parse input
     const parsed = parseInput(input);

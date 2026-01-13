@@ -3,42 +3,47 @@
  */
 
 import { testExists } from "../test-store/test-manager.js";
-import { DesignMode } from "../modes/design-mode.js";
+import { DesignModeInk } from "../modes/design-mode-ink.js";
 
 /**
  * Handle /create command
  * @param {string} args - Test name
  * @param {Object} session - Current session
- * @param {Object} context - Additional context (includes rl, engine)
+ * @param {Object} context - Additional context (includes engine, addOutput, etc.)
  * @returns {Promise<boolean>} - true to continue loop
  */
 export async function handleCreate(args, session, context) {
+  const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
   const testName = args.trim();
 
   // Check if test name provided
   if (!testName) {
-    console.log("Usage: /create <test-name>");
-    console.log("\nExample:");
-    console.log("  /create login-flow");
-    console.log("  /create calculator-test");
+    addOutput({ type: 'error', text: 'Usage: /create <test-name>' });
+    addOutput({ type: 'info', text: '' });
+    addOutput({ type: 'info', text: 'Example:' });
+    addOutput({ type: 'info', text: '  /create login-flow' });
+    addOutput({ type: 'info', text: '  /create calculator-test' });
     return true; // Continue loop
   }
 
   // Check if test already exists
   const exists = await testExists(testName);
   if (exists) {
-    console.log(`Test already exists: ${testName}`);
-    console.log("Choose a different name or delete the existing test first.");
+    addOutput({ type: 'error', text: `Test already exists: ${testName}` });
+    addOutput({ type: 'info', text: 'Choose a different name or delete the existing test first.' });
     return true; // Continue loop
   }
 
   // Create design mode
-  const designMode = new DesignMode(session, context.engine, testName);
+  const designMode = new DesignModeInk(session, context.engine, testName, context);
+
+  // Store reference in context so ink-shell can route inputs to it
+  context.activeDesignMode = designMode;
 
   // Start design mode conversation
-  await designMode.start(context);
+  await designMode.start();
 
-  console.log("\n=== Exited Design Mode ===\n");
+  addOutput({ type: 'system', text: '=== Exited Design Mode ===' });
 
   return true; // Continue loop
 }

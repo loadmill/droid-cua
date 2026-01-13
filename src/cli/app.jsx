@@ -45,6 +45,9 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
     // Session access
     session,
 
+    // Design mode reference (for routing inputs)
+    activeDesignMode: null,
+
     // Exit
     exit: () => {
       if (onExit) {
