@@ -22,6 +22,7 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
   const [activeExecutionMode, setActiveExecutionMode] = useState(null);
   const [isExecutionMode, setIsExecutionMode] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [inputResolver, setInputResolver] = useState(null); // For waiting on user input
 
   // Context object passed to modes and commands
   const context = {
@@ -69,6 +70,13 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
         onExit();
       }
     },
+
+    // Wait for user input (for prompts during execution)
+    waitForUserInput: () => {
+      return new Promise((resolve) => {
+        setInputResolver(() => resolve);
+      });
+    },
   };
 
   // Make context available globally for modes
@@ -93,6 +101,15 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
   }, []); // Empty deps = run once on mount
 
   const handleInput = async (input) => {
+    // Check if we're waiting for user input (e.g., assertion failure prompt)
+    if (inputResolver) {
+      // Resolve the waiting promise with the user's input
+      inputResolver(input);
+      setInputResolver(null);
+      setInputValue('');
+      return;
+    }
+
     // Add user input to output
     context.addOutput({ type: 'user', text: input });
 

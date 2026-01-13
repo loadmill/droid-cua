@@ -20,7 +20,6 @@ export class ExecutionMode {
     this.engine = executionEngine;
     this.instructions = instructions; // Array of instruction strings
     this.initialSystemText = session.systemPrompt;
-    this.isHeadlessMode = true; // Execution mode is always considered "headless" for assertions
     this.shouldStop = false; // Flag to stop execution (set by /stop command)
   }
 
@@ -84,6 +83,8 @@ export class ExecutionMode {
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   async executeInstruction(instruction, context) {
+    const addOutput = context.addOutput || ((item) => console.log(item.text || item));
+
     // ── Check for assertion ──
     const isAssertionStep = isAssertion(instruction);
     let assertionPrompt = null;
@@ -128,10 +129,35 @@ export class ExecutionMode {
           handleAssertionFailure(
             assertionPrompt,
             this.session.transcript,
-            this.isHeadlessMode,
+            false, // Never exit process - we'll always prompt the user
             context
           );
-          return { success: false, error: `Assertion failed: ${assertionPrompt}` };
+
+          // Ask user what to do
+          addOutput({ type: 'system', text: 'What would you like to do? (retry/skip/stop)' });
+
+          // Wait for user input
+          const userChoice = await new Promise((resolve) => {
+            if (context?.waitForUserInput) {
+              context.waitForUserInput().then(resolve);
+            } else {
+              // Fallback if waitForUserInput not available
+              resolve('stop');
+            }
+          });
+
+          const choice = userChoice.toLowerCase().trim();
+
+          if (choice === 'retry' || choice === 'r') {
+            // Retry the same instruction by recursing
+            return await this.executeInstruction(instruction, context);
+          } else if (choice === 'skip' || choice === 's') {
+            // Continue to next instruction
+            addOutput({ type: 'info', text: 'Skipping failed assertion and continuing...' });
+          } else {
+            // Stop execution
+            return { success: false, error: `Assertion failed: ${assertionPrompt}` };
+          }
         } else if (result.passed) {
           handleAssertionSuccess(assertionPrompt, context);
         }

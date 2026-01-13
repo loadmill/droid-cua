@@ -21,9 +21,14 @@ export class Session {
 
   /**
    * Clear all messages (used in execution mode between turns)
+   * Preserves the system prompt if one was set
    */
   clearMessages() {
-    this.messages = [];
+    if (this.systemPrompt) {
+      this.messages = [{ role: "system", content: this.systemPrompt }];
+    } else {
+      this.messages = [];
+    }
   }
 
   /**

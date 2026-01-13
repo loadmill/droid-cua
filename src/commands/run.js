@@ -4,6 +4,7 @@
 
 import { loadTest, listTests, testExists } from "../test-store/test-manager.js";
 import { ExecutionMode } from "../modes/execution-mode.js";
+import { buildExecutionModePrompt } from "../core/prompts.js";
 
 /**
  * Handle /run command
@@ -78,6 +79,10 @@ export async function handleRun(args, session, context) {
   // Each test instruction should execute in isolation
   session.updateResponseId(undefined);
   session.clearMessages();
+
+  // Set execution mode system prompt (replaces any design mode prompt)
+  const executionPrompt = buildExecutionModePrompt(session.deviceInfo);
+  session.setSystemPrompt(executionPrompt);
 
   // Create execution mode
   const executionMode = new ExecutionMode(session, context.engine, instructions);
