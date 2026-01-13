@@ -121,7 +121,7 @@ export class ExecutionMode {
       return { success: true };
     } catch (err) {
       const addOutput = context.addOutput || ((item) => console.log(item.text || item));
-      addOutput({ type: 'info', text: '⚠️ OpenAI request failed. Resetting context and trying again.' });
+      addOutput({ type: 'info', text: 'Connection issue. Retrying...' });
 
       const summary = `The last session failed. Let's try again based on the last user message.
       Here's a transcript of everything that happened so far:

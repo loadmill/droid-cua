@@ -61,7 +61,7 @@ export class ExecutionEngine {
       // ── Process model actions ──
       for (const { action, call_id, pending_safety_checks } of actions) {
         if (action.type === "screenshot") {
-          addOutput({ type: 'info', text: 'Model requested screenshot.' });
+          addOutput({ type: 'info', text: '📸 Capturing screen' });
         } else {
           await handleModelAction(this.session.deviceId, action, this.session.deviceInfo.scale, context);
 
