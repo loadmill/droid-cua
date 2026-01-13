@@ -76,6 +76,14 @@ function OutputItem({ item }) {
         </Box>
       );
 
+    case 'test-name':
+      return (
+        <Box>
+          <Text color="cyan">{item.text}</Text>
+          <Text dimColor>  {item.metadata}</Text>
+        </Box>
+      );
+
     case 'info':
       return (
         <Box>

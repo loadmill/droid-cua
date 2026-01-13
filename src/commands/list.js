@@ -43,9 +43,11 @@ export async function handleList(args, session, context) {
         timeAgo = 'just now';
       }
 
+      // Output test name in cyan, metadata in dim
       addOutput({
-        type: 'info',
-        text: `  ${test.name}  (${test.lines} lines, modified ${timeAgo})`
+        type: 'test-name',
+        text: `  ${test.name}`,
+        metadata: `(${test.lines} lines, modified ${timeAgo})`
       });
     }
     addOutput({ type: 'info', text: '' });

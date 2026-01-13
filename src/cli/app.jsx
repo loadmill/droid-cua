@@ -4,6 +4,8 @@ import { StatusBar } from './components/StatusBar.jsx';
 import { OutputPanel } from './components/OutputPanel.jsx';
 import { InputPanel } from './components/InputPanel.jsx';
 import { AgentStatus } from './components/AgentStatus.jsx';
+import { CommandSuggestions } from './components/CommandSuggestions.jsx';
+import { COMMANDS } from './command-parser.js';
 
 /**
  * Main Ink App component - conversational split-pane UI
@@ -18,6 +20,7 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
   const [inputPlaceholder, setInputPlaceholder] = useState('Type a command or message...');
   const [activeDesignMode, setActiveDesignMode] = useState(null);
   const [isExecutionMode, setIsExecutionMode] = useState(false);
+  const [inputValue, setInputValue] = useState('');
 
   // Context object passed to modes and commands
   const context = {
@@ -73,13 +76,11 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
   // Show welcome banner on mount
   useEffect(() => {
     const banner = `
-     _           _     _
-  __| |_ __ ___ (_) __| |      ___ _   _  __ _
- / _\` | '__/ _ \\| |/ _\` |____ / __| | | |/ _\` |
-| (_| | | | (_) | | (_| |____| (__| |_| | (_| |
- \\__,_|_|  \\___/|_|\\__,_|     \\___|\\__,_|\\__,_|
-
-AI-powered Android testing CLI
+ _                    _           _ _ _       _           _     _
+| |    ___   __ _  __| |_ __ ___ (_) | |   __| |_ __ ___ (_) __| |       ___ _   _  __ _
+| |   / _ \\ / _\` |/ _\` | '_ \` _ \\| | | |  / _\` | '__/ _ \\| |/ _\` |_____ / __| | | |/ _\` |
+| |__| (_) | (_| | (_| | | | | | | | | | | (_| | | | (_) | | (_| |_____| (__| |_| | (_| |
+|_____\\___/ \\__,_|\\__,_|_| |_| |_|_|_|_|  \\__,_|_|  \\___/|_|\\__,_|      \\___|\\__,_|\\__,_|
 `;
     context.addOutput({ type: 'system', text: banner });
     context.addOutput({ type: 'info', text: 'Type /help for available commands.' });
@@ -89,6 +90,9 @@ AI-powered Android testing CLI
   const handleInput = async (input) => {
     // Add user input to output
     context.addOutput({ type: 'user', text: input });
+
+    // Clear input value
+    setInputValue('');
 
     // Call input handler
     if (onInput) {
@@ -105,11 +109,16 @@ AI-powered Android testing CLI
         <AgentStatus isWorking={agentWorking} message={agentMessage} />
       </Box>
 
-      <InputPanel
-        onSubmit={handleInput}
-        placeholder={inputPlaceholder}
-        disabled={inputDisabled}
-      />
+      <Box flexDirection="column">
+        <InputPanel
+          value={inputValue}
+          onChange={setInputValue}
+          onSubmit={handleInput}
+          placeholder={inputPlaceholder}
+          disabled={inputDisabled}
+        />
+        <CommandSuggestions input={inputValue} commands={COMMANDS} />
+      </Box>
     </Box>
   );
 }

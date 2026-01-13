@@ -1,20 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
 
 /**
  * Always-active input panel at the bottom
  */
-export function InputPanel({ onSubmit, placeholder, disabled }) {
-  const [value, setValue] = useState('');
-
+export function InputPanel({ value, onChange, onSubmit, placeholder, disabled }) {
   const handleSubmit = (submittedValue) => {
     if (submittedValue.trim().length === 0) {
       return;
     }
 
     onSubmit(submittedValue.trim());
-    setValue('');
   };
 
   if (disabled) {
@@ -30,7 +27,7 @@ export function InputPanel({ onSubmit, placeholder, disabled }) {
       <Text color="cyan" bold>&gt; </Text>
       <TextInput
         value={value}
-        onChange={setValue}
+        onChange={onChange}
         onSubmit={handleSubmit}
         placeholder={placeholder || 'Type a command or message...'}
         placeholderColor="gray"
