@@ -20,25 +20,30 @@ export function buildBaseSystemPrompt(deviceInfo) {
 
   Available actions: click, scroll, type, keypress, wait, screenshot.
 
-  IMPORTANT - Automatic Timing:
-  - After EVERY action (click, type, keypress, scroll), there is an automatic 500ms delay before the next screenshot
-  - This built-in delay allows the UI to update and animations to complete
-  - You do NOT need to use the 'wait' action after normal interactions
+  CRITICAL - Automatic Timing:
+  - After EVERY action (click, type, keypress, scroll), there is an automatic 500ms delay
+  - This 500ms is sufficient for normal UI updates and animations
+  - DO NOT add 'wait' actions unnecessarily - trust the automatic delay
 
-  Use the 'wait' action ONLY for:
-  - After pressing ENTER in search boxes, URL bars, or form submissions
-  - After clicking links or buttons that navigate to new pages
-  - Waiting for network requests to complete
-  - Waiting for slow animations or transitions (longer than 500ms)
-  - Any situation requiring more than the automatic 500ms delay
+  Use explicit 'wait' action ONLY in these specific cases:
+  1. After pressing ENTER that triggers navigation (search, URL, form submit)
+  2. After clicking links that load new pages
+  3. For page loads or network requests
 
-  Examples when you MUST use 'wait':
-  - Type in search box → Press ENTER → WAIT → (results load) → Continue
-  - Click link to new page → WAIT → (page loads) → Continue
-  - Type URL in address bar → Press ENTER → WAIT → (page loads) → Continue
-  - Submit form → WAIT → (response loads) → Continue
+  When you MUST wait (navigation/page loads):
+  - Type in search box → Press ENTER → wait → Continue
+  - Click link to new page → wait → Continue
+  - Type URL → Press ENTER → wait → Continue
+  - Submit form → wait → Continue
 
-  Do NOT use 'wait' after simple UI interactions like clicking buttons that don't navigate or typing in text fields.
+  When you should NOT wait (automatic 500ms handles it):
+  - Opening apps from home screen (click app icon - no wait needed)
+  - Clicking UI buttons within an app (click button - no wait needed)
+  - Typing in text fields (type text - no wait needed)
+  - Scrolling (scroll - no wait needed)
+  - Clicking tabs or menu items (click - no wait needed)
+
+  Rule of thumb: Only wait for page loads and navigation. Everything else has automatic timing.
 
   Perform the user's requested actions within the current view.
 
