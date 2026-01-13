@@ -17,8 +17,10 @@ export class ExecutionEngine {
    * Returns the new response ID for chaining
    * @param {Object} response - The CUA response
    * @param {Function} trackAction - Optional callback to track actions for stuck detection
+   * @param {Object} context - Optional Ink context for output
    */
-  async runFullTurn(response, trackAction = null) {
+  async runFullTurn(response, trackAction = null, context = null) {
+    const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
     let newResponseId = response.id;
 
     while (true) {
@@ -38,17 +40,15 @@ export class ExecutionEngine {
         if (item.type === "reasoning") {
           for (const entry of item.summary) {
             if (entry.type === "summary_text") {
-              const line = `[Reasoning] ${entry.text}`;
-              console.log(line);
-              this.session.addToTranscript(line);
+              addOutput({ type: 'reasoning', text: entry.text });
+              this.session.addToTranscript(`[Reasoning] ${entry.text}`);
             }
           }
         } else if (item.type === "message") {
           const textPart = item.content.find(c => c.type === "output_text");
           if (textPart) {
-            const line = `[Assistant] ${textPart.text}`;
-            console.log(line);
-            this.session.addToTranscript(line);
+            addOutput({ type: 'assistant', text: textPart.text });
+            this.session.addToTranscript(`[Assistant] ${textPart.text}`);
           }
         }
       }
@@ -61,9 +61,9 @@ export class ExecutionEngine {
       // ── Process model actions ──
       for (const { action, call_id, pending_safety_checks } of actions) {
         if (action.type === "screenshot") {
-          console.log("Model requested screenshot.");
+          addOutput({ type: 'info', text: 'Model requested screenshot.' });
         } else {
-          await handleModelAction(this.session.deviceId, action, this.session.deviceInfo.scale);
+          await handleModelAction(this.session.deviceId, action, this.session.deviceInfo.scale, context);
 
           // Track action and check for interruption
           if (trackAction) {
@@ -109,7 +109,7 @@ export class ExecutionEngine {
     // ── At end, if last output was only reasoning ──
     const finalItems = response.output || [];
     if (finalItems.length > 0 && finalItems.at(-1).type === "reasoning") {
-      console.log("Warning: last item was reasoning without follow-up. Dropping to avoid 400 error.");
+      addOutput({ type: 'info', text: 'Warning: last item was reasoning without follow-up. Dropping to avoid 400 error.' });
     }
 
     return newResponseId;

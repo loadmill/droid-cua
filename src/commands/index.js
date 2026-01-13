@@ -31,11 +31,12 @@ const COMMAND_HANDLERS = {
  * @returns {Promise<boolean>} - true if command should continue loop, false to exit
  */
 export async function routeCommand(command, args, session, context) {
+  const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
   const handler = COMMAND_HANDLERS[command];
 
   if (!handler) {
-    console.log(`Unknown command: /${command}`);
-    console.log(`Type /help to see available commands.`);
+    addOutput({ type: 'error', text: `Unknown command: /${command}` });
+    addOutput({ type: 'info', text: 'Type /help to see available commands.' });
     return true; // Continue loop
   }
 

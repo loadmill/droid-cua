@@ -24,17 +24,19 @@ export class ExecutionMode {
 
   /**
    * Execute all instructions in the test script
-   * @param {Object} context - Additional context (rl for readline interface)
+   * @param {Object} context - Additional context (Ink context with addOutput)
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   async execute(context = {}) {
+    const addOutput = context.addOutput || ((item) => console.log(item.text || item));
+
     for (let i = 0; i < this.instructions.length; i++) {
       const instruction = this.instructions[i];
-      console.log(`> ${instruction}`);
+      addOutput({ type: 'user', text: instruction });
 
       // Check for exit command
       if (instruction.toLowerCase() === "exit") {
-        console.log("Test completed.");
+        addOutput({ type: 'success', text: 'Test completed.' });
         return { success: true };
       }
 
@@ -44,13 +46,13 @@ export class ExecutionMode {
           return result; // Propagate failure
         }
       } catch (err) {
-        console.error(`Error executing instruction: ${instruction}`);
-        console.error(err.message);
+        addOutput({ type: 'error', text: `Error executing instruction: ${instruction}` });
+        addOutput({ type: 'error', text: err.message });
         return { success: false, error: err.message };
       }
     }
 
-    console.log("Test completed successfully.");
+    addOutput({ type: 'success', text: 'Test completed successfully.' });
     return { success: true };
   }
 
@@ -94,7 +96,7 @@ export class ExecutionMode {
         deviceInfo: this.session.deviceInfo,
       });
 
-      const newResponseId = await this.engine.runFullTurn(response);
+      const newResponseId = await this.engine.runFullTurn(response, null, context);
       this.session.updateResponseId(newResponseId);
 
       // ── Check assertion result ──
@@ -106,11 +108,11 @@ export class ExecutionMode {
             assertionPrompt,
             this.session.transcript,
             this.isHeadlessMode,
-            context.rl
+            context
           );
           return { success: false, error: `Assertion failed: ${assertionPrompt}` };
         } else if (result.passed) {
-          handleAssertionSuccess(assertionPrompt);
+          handleAssertionSuccess(assertionPrompt, context);
         }
       }
 
@@ -118,7 +120,8 @@ export class ExecutionMode {
       this.session.clearMessages();
       return { success: true };
     } catch (err) {
-      console.log("⚠️ OpenAI request failed. Resetting context and trying again.");
+      const addOutput = context.addOutput || ((item) => console.log(item.text || item));
+      addOutput({ type: 'info', text: '⚠️ OpenAI request failed. Resetting context and trying again.' });
 
       const summary = `The last session failed. Let's try again based on the last user message.
       Here's a transcript of everything that happened so far:

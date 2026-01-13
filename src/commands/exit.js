@@ -10,15 +10,16 @@
  * @returns {Promise<boolean>} - false to exit loop
  */
 export async function handleExit(args, session, context) {
-  console.log("Goodbye!");
+  const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
 
-  // Close readline interface
-  if (context.rl) {
-    context.rl.close();
+  addOutput({ type: 'system', text: 'Goodbye!' });
+
+  // Exit via context (for Ink) or process.exit (for headless)
+  if (context?.exit) {
+    context.exit();
+  } else {
+    process.exit(0);
   }
-
-  // Exit process
-  process.exit(0);
 
   // This won't be reached, but return false for consistency
   return false;
