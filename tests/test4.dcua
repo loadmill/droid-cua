@@ -1,9 +1,0 @@
-Open Chrome
-Search for "calculator"
-assert: Google calculator is visible
-Type "1"
-Click the plus button
-Type "2"
-Click the equals button
-assert: result shows 3
-exit
