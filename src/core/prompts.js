@@ -20,6 +20,19 @@ export function buildBaseSystemPrompt(deviceInfo) {
 
   Available actions: click, scroll, type, keypress, wait, screenshot.
 
+  IMPORTANT - Automatic Timing:
+  - After EVERY action (click, type, keypress, scroll), there is an automatic 500ms delay before the next screenshot
+  - This built-in delay allows the UI to update and animations to complete
+  - You do NOT need to use the 'wait' action after normal interactions
+
+  Use the 'wait' action ONLY for:
+  - Waiting for page loads or navigation (use wait after clicking links or navigating)
+  - Waiting for network requests to complete
+  - Waiting for slow animations or transitions (longer than 500ms)
+  - Any situation requiring more than the automatic 500ms delay
+
+  Do NOT use 'wait' after simple clicks or typing - the system already handles this automatically.
+
   Perform the user's requested actions within the current view.
 
   If unsure about visual elements, take a screenshot to improve your reasoning.
