@@ -73,6 +73,12 @@ export class ExecutionEngine {
               return newResponseId;
             }
           }
+
+          // Add delay after UI-changing actions to let the interface update
+          // before taking the screenshot (except for explicit wait actions which have their own delay)
+          if (action.type !== "wait") {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
         }
 
         const screenshotBase64 = await getScreenshotAsBase64(
