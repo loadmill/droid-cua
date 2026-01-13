@@ -41,7 +41,7 @@ function OutputItem({ item }) {
 
     case 'assistant':
       return (
-        <Box flexDirection="column" marginY={1}>
+        <Box flexDirection="column" marginTop={1}>
           <Text color="green" bold>[Assistant]</Text>
           <Text>{item.text}</Text>
         </Box>
@@ -49,7 +49,7 @@ function OutputItem({ item }) {
 
     case 'user':
       return (
-        <Box marginY={1}>
+        <Box marginTop={1}>
           <Text bold>You: </Text>
           <Text>{item.text}</Text>
         </Box>
@@ -57,21 +57,21 @@ function OutputItem({ item }) {
 
     case 'system':
       return (
-        <Box marginY={1}>
+        <Box marginTop={1}>
           <Text color="yellow">{item.text}</Text>
         </Box>
       );
 
     case 'error':
       return (
-        <Box marginY={1}>
+        <Box>
           <Text color="red">⚠️  {item.text}</Text>
         </Box>
       );
 
     case 'success':
       return (
-        <Box marginY={1}>
+        <Box>
           <Text color="green">✓ {item.text}</Text>
         </Box>
       );

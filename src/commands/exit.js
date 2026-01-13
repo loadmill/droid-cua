@@ -14,13 +14,11 @@ export async function handleExit(args, session, context) {
 
   addOutput({ type: 'system', text: 'Goodbye!' });
 
-  // Exit via context (for Ink) or process.exit (for headless)
-  if (context?.exit) {
-    context.exit();
-  } else {
+  // Force immediate exit to stop any ongoing execution
+  // Use setTimeout to allow the "Goodbye!" message to render first
+  setTimeout(() => {
     process.exit(0);
-  }
+  }, 100);
 
-  // This won't be reached, but return false for consistency
   return false;
 }
