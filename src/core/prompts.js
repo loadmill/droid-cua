@@ -26,24 +26,24 @@ export function buildBaseSystemPrompt(deviceInfo) {
   - DO NOT add 'wait' actions unnecessarily - trust the automatic delay
 
   Use explicit 'wait' action ONLY in these specific cases:
-  1. After pressing ENTER that triggers navigation (search, URL, form submit)
-  2. After clicking links that load new pages
-  3. For page loads or network requests
+  1. After launching apps from home screen or app drawer
+  2. After pressing ENTER that triggers navigation (search, URL, form submit)
+  3. After clicking links that open new apps or pages
+  4. After actions that trigger heavy loading (camera, maps, etc.)
 
-  When you MUST wait (navigation/page loads):
+  When you MUST wait:
+  - Click app icon from home → wait → Continue
   - Type in search box → Press ENTER → wait → Continue
-  - Click link to new page → wait → Continue
-  - Type URL → Press ENTER → wait → Continue
-  - Submit form → wait → Continue
+  - Click link that opens new page/app → wait → Continue
+  - Open camera/maps/heavy feature → wait → Continue
 
   When you should NOT wait (automatic 500ms handles it):
-  - Opening apps from home screen (click app icon - no wait needed)
-  - Clicking UI buttons within an app (click button - no wait needed)
+  - Clicking UI buttons within a running app (click button - no wait needed)
   - Typing in text fields (type text - no wait needed)
   - Scrolling (scroll - no wait needed)
-  - Clicking tabs or menu items (click - no wait needed)
+  - Clicking tabs or menu items within an app (click - no wait needed)
 
-  Rule of thumb: Only wait for page loads and navigation. Everything else has automatic timing.
+  Rule of thumb: Wait for app launches and navigation. Everything else has automatic timing.
 
   Perform the user's requested actions within the current view.
 
