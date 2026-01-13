@@ -23,6 +23,15 @@ export async function startInkShell(session, executionEngine) {
     // Parse input
     const parsed = parseInput(input);
 
+    // During execution mode, only allow commands (not free text)
+    if (context.isExecutionMode && parsed.type !== 'command') {
+      context.addOutput({
+        type: 'error',
+        text: 'Cannot interrupt test execution with instructions. Use /exit to stop the test.',
+      });
+      return;
+    }
+
     if (parsed.type === 'command') {
       // Route to command handler
       const shouldContinue = await routeCommand(

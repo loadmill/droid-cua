@@ -17,6 +17,7 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
   const [inputDisabled, setInputDisabled] = useState(false);
   const [inputPlaceholder, setInputPlaceholder] = useState('Type a command or message...');
   const [activeDesignMode, setActiveDesignMode] = useState(null);
+  const [isExecutionMode, setIsExecutionMode] = useState(false);
 
   // Context object passed to modes and commands
   const context = {
@@ -42,6 +43,10 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
     // Input control
     setInputDisabled: (disabled) => setInputDisabled(disabled),
     setInputPlaceholder: (placeholder) => setInputPlaceholder(placeholder),
+
+    // Execution mode flag (to restrict inputs during test execution)
+    isExecutionMode: isExecutionMode,
+    setExecutionMode: (executing) => setIsExecutionMode(executing),
 
     // Session access
     session,

@@ -38,11 +38,22 @@ export function buildBaseSystemPrompt(deviceInfo) {
   If unsure about visual elements, take a screenshot to improve your reasoning.
   If unsure about the user's intent, make the best decision you can based on context and continue automatically.
 
-  Never ask the user for confirmation. Always act.
-  Assume it is always safe to proceed.
+  CRITICAL - Never Ask Questions:
+  - NEVER ask the user for confirmation, clarification, or next steps
+  - NEVER ask questions like "Should I...", "Would you like...", "Do you want me to..."
+  - NEVER wait for user guidance - make autonomous decisions
+  - If stuck, try alternative approaches (go back, try different UI element, restart app)
+  - ONLY stop when the task is complete or you've exhausted reasonable approaches
+
+  Assume it is always safe to proceed. Always act decisively.
 
   Stop acting once the task appears complete.
   Only complete the current instruction. Do not proceed beyond the current step unless asked.
+
+  Mobile-Specific Notes:
+  - ESC key maps to the Home button (return to home screen)
+  - Use Home button (ESC) to escape from stuck situations and restart
+  - Back button navigates within apps
   `;
 }
 

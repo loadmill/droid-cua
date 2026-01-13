@@ -58,6 +58,17 @@ export async function handleRun(args, session, context) {
   addOutput({ type: 'info', text: `Loaded ${instructions.length} instructions` });
   addOutput({ type: 'info', text: '' });
 
+  // Disable free-form input during execution (only allow commands like /exit)
+  if (context.setInputDisabled) {
+    context.setInputDisabled(false); // Keep input enabled, but...
+  }
+  if (context.setExecutionMode) {
+    context.setExecutionMode(true); // Signal we're in execution mode
+  }
+  if (context.setInputPlaceholder) {
+    context.setInputPlaceholder('Type /exit to stop test execution');
+  }
+
   // Set agent working status
   if (context.setAgentWorking) {
     context.setAgentWorking(true, 'Executing test...');
@@ -72,6 +83,14 @@ export async function handleRun(args, session, context) {
   // Clear agent working status
   if (context.setAgentWorking) {
     context.setAgentWorking(false);
+  }
+
+  // Re-enable free-form input
+  if (context.setExecutionMode) {
+    context.setExecutionMode(false);
+  }
+  if (context.setInputPlaceholder) {
+    context.setInputPlaceholder('Type a command or message...');
   }
 
   // Reset mode

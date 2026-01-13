@@ -55,8 +55,16 @@ export async function handleModelAction(deviceId, action, scale = 1.0, context =
         break;
 
       case "keypress":
-        addOutput({ type: 'action', text: `Pressing key: ${keys}` });
-        for (const key of keys) {
+        // Map ESC to Android Home button (since ESC doesn't exist on mobile)
+        const mappedKeys = keys.map(key => {
+          if (key.toUpperCase() === 'ESC' || key.toUpperCase() === 'ESCAPE') {
+            return 'KEYCODE_HOME';
+          }
+          return key;
+        });
+
+        addOutput({ type: 'action', text: `Pressing key: ${mappedKeys.join(', ')}` });
+        for (const key of mappedKeys) {
           await adbShell(deviceId, `input keyevent ${key}`);
         }
         break;
