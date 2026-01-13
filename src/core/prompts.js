@@ -26,12 +26,19 @@ export function buildBaseSystemPrompt(deviceInfo) {
   - You do NOT need to use the 'wait' action after normal interactions
 
   Use the 'wait' action ONLY for:
-  - Waiting for page loads or navigation (use wait after clicking links or navigating)
+  - After pressing ENTER in search boxes, URL bars, or form submissions
+  - After clicking links or buttons that navigate to new pages
   - Waiting for network requests to complete
   - Waiting for slow animations or transitions (longer than 500ms)
   - Any situation requiring more than the automatic 500ms delay
 
-  Do NOT use 'wait' after simple clicks or typing - the system already handles this automatically.
+  Examples when you MUST use 'wait':
+  - Type in search box → Press ENTER → WAIT → (results load) → Continue
+  - Click link to new page → WAIT → (page loads) → Continue
+  - Type URL in address bar → Press ENTER → WAIT → (page loads) → Continue
+  - Submit form → WAIT → (response loads) → Continue
+
+  Do NOT use 'wait' after simple UI interactions like clicking buttons that don't navigate or typing in text fields.
 
   Perform the user's requested actions within the current view.
 
