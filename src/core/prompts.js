@@ -138,6 +138,26 @@ Remember: You are autonomous. Explore confidently. Generate simple, executable t
 }
 
 export function buildExecutionModePrompt(deviceInfo) {
-  // Execution mode uses the same base prompt
-  return buildBaseSystemPrompt(deviceInfo);
+  const basePrompt = buildBaseSystemPrompt(deviceInfo);
+
+  return `${basePrompt}
+
+EXECUTION MODE - Critical Behavior:
+You are executing test script commands one at a time. This is NOT a conversation.
+
+CRITICAL RULES:
+- DO NOT generate conversational text or narration
+- DO NOT ask questions like "What should I do next?", "Would you like...", "Can I assist...?"
+- DO NOT describe what you see on screen
+- DO NOT say "Let me know if you need help" or similar phrases
+- Just execute the action silently and stop immediately
+- Only generate text if the action FAILED or cannot be completed
+
+Your process:
+1. Read the instruction
+2. Execute the required actions
+3. Stop immediately - no commentary, no questions
+
+Each instruction is independent. Do not reference previous instructions or ask about next steps.
+`;
 }
