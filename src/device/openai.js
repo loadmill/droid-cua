@@ -7,6 +7,40 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+/**
+ * Revise a test script based on user feedback using simple chat completion
+ * @param {string} originalScript - The original test script
+ * @param {string} revisionRequest - User's requested changes
+ * @returns {Promise<string>} - The revised test script
+ */
+export async function reviseTestScript(originalScript, revisionRequest) {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{
+      role: "system",
+      content: `You are editing a test script based on user feedback.
+
+Current test script:
+${originalScript}
+
+User's revision request:
+${revisionRequest}
+
+Apply the user's changes and output the revised test script.
+
+FORMAT RULES:
+- One simple instruction per line (NO numbers, NO bullets)
+- Use imperative commands: "Open X", "Click Y", "Type Z"
+- Include "assert: <condition>" lines to validate expected behavior
+- End with "exit"
+
+Output only the revised test script, nothing else.`
+    }]
+  });
+
+  return response.choices[0].message.content.trim();
+}
+
 export async function sendCUARequest({
   messages,
   screenshotBase64,
@@ -69,7 +103,9 @@ export async function sendCUARequest({
   try {
     const response = await openai.responses.create(requestParams);
 
-    // Log response with tool call and safety check details
+    // Log ALL output item types to catch everything
+    const outputTypes = (response.output || []).map(item => item.type);
+
     const toolCalls = (response.output || [])
       .filter(item => item.type === 'computer_call')
       .map(item => ({
@@ -84,12 +120,22 @@ export async function sendCUARequest({
         code: item.code
       }));
 
+    // Log full output array if there are unaccounted items
+    const accountedItems = toolCalls.length + safetyChecks.length;
+    const totalItems = response.output?.length || 0;
+
     logger.debug('CUA Response:', {
       id: response.id,
-      output_length: response.output?.length || 0,
+      output_length: totalItems,
+      output_types: outputTypes,
       tool_calls: toolCalls.length > 0 ? toolCalls : 'none',
       pending_safety_checks: safetyChecks.length > 0 ? safetyChecks : 'none'
     });
+
+    // If we're missing items in our logging, log the full output for investigation
+    if (accountedItems < totalItems) {
+      logger.debug('UNACCOUNTED OUTPUT ITEMS - Full output array:', response.output);
+    }
 
     return response;
   } catch (err) {

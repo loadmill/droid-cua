@@ -1,6 +1,6 @@
 import readline from "readline";
 import { getScreenshotAsBase64 } from "../device/connection.js";
-import { sendCUARequest } from "../device/openai.js";
+import { sendCUARequest, reviseTestScript } from "../device/openai.js";
 import { buildDesignModePrompt } from "../core/prompts.js";
 import { saveTest } from "../test-store/test-manager.js";
 import { logger } from "../utils/logger.js";
@@ -294,23 +294,45 @@ export class DesignMode {
             this.conversationActive = false;
             return;
           } else {
-            // User wants to revise
-            console.log("\nRevision mode: Describe the changes you want.");
-            const revision = await this.promptUser(
-              context.rl,
-              "What changes would you like? "
-            );
+            // User wants to revise - use simple text revision (no CUA)
+            let currentScript = generatedScript;
+            let revising = true;
 
-            // Add revision request to conversation
-            const revisionPrompt = `Please revise the test script with these changes: ${revision}\n\nRemember to output the revised script in a code block with the correct format (simple instructions, no numbers).`;
-            this.session.addToTranscript(`[User] ${revisionPrompt}`);
-            this.session.addMessage("user", revisionPrompt);
+            while (revising) {
+              console.log("\nRevision mode: Describe the changes you want.");
+              const revision = await this.promptUser(
+                context.rl,
+                "What changes would you like? "
+              );
 
-            // Reset previousResponseId to start fresh conversation thread
-            // The messages array contains full context, but API-level continuation is reset
-            this.session.updateResponseId(null);
+              // Use simple chat completion for revision instead of CUA
+              console.log("Revising test script...");
+              currentScript = await reviseTestScript(currentScript, revision);
 
-            continue; // Go back to conversation loop
+              // Display the revised script
+              console.log("\n=== Generated Test Script ===");
+              console.log(currentScript);
+              console.log("=============================\n");
+
+              // Ask again
+              const nextConfirm = await this.promptUser(
+                context.rl,
+                "Save this test? (yes/no/revise): "
+              );
+
+              if (nextConfirm.toLowerCase() === "yes" || nextConfirm.toLowerCase() === "y") {
+                await this.saveGeneratedTest(currentScript);
+                console.log(`\n✓ Test saved as: ${this.testName}.dcua`);
+                console.log("You can run it with: /run " + this.testName);
+                this.conversationActive = false;
+                return;
+              } else if (nextConfirm.toLowerCase() === "no" || nextConfirm.toLowerCase() === "n") {
+                console.log("Design mode cancelled.");
+                this.conversationActive = false;
+                return;
+              }
+              // If user types 'revise' again, the while loop continues
+            }
           }
         }
 

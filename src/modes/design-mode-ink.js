@@ -1,5 +1,5 @@
 import { getScreenshotAsBase64 } from "../device/connection.js";
-import { sendCUARequest } from "../device/openai.js";
+import { sendCUARequest, reviseTestScript } from "../device/openai.js";
 import { buildDesignModePrompt } from "../core/prompts.js";
 import { saveTest } from "../test-store/test-manager.js";
 import { logger } from "../utils/logger.js";
@@ -299,19 +299,43 @@ export class DesignModeInk {
             this.cleanup();
             return;
           } else {
-            // User wants to revise
-            addOutput({ type: 'system', text: 'Revision mode: Describe the changes you want.' });
-            const revision = await this.waitForUserInput();
+            // User wants to revise - use simple text revision (no CUA)
+            let currentScript = generatedScript;
+            let revising = true;
 
-            // Add revision request to conversation
-            const revisionPrompt = `Please revise the test script with these changes: ${revision}\n\nRemember to output the revised script in a code block with the correct format (simple instructions, no numbers).`;
-            this.session.addToTranscript(`[User] ${revisionPrompt}`);
-            this.session.addMessage("user", revisionPrompt);
+            while (revising) {
+              addOutput({ type: 'system', text: 'Revision mode: Describe the changes you want.' });
+              const revision = await this.waitForUserInput();
 
-            // Reset previousResponseId to start fresh conversation thread
-            this.session.updateResponseId(null);
+              // Use simple chat completion for revision instead of CUA
+              addOutput({ type: 'info', text: 'Revising test script...' });
+              currentScript = await reviseTestScript(currentScript, revision);
 
-            continue; // Go back to conversation loop
+              // Display the revised script
+              addOutput({ type: 'info', text: '' });
+              addOutput({ type: 'system', text: '=== Generated Test Script ===' });
+              addOutput({ type: 'info', text: currentScript });
+              addOutput({ type: 'system', text: '=============================' });
+
+              // Ask again
+              addOutput({ type: 'system', text: 'Save this test? (yes/no/revise)' });
+              const nextConfirm = await this.waitForUserInput();
+
+              if (nextConfirm.toLowerCase() === "yes" || nextConfirm.toLowerCase() === "y") {
+                await this.saveGeneratedTest(currentScript);
+                addOutput({ type: 'success', text: `Test saved as: ${this.testName}.dcua` });
+                addOutput({ type: 'info', text: `You can run it with: /run ${this.testName}` });
+                this.conversationActive = false;
+                this.cleanup();
+                return;
+              } else if (nextConfirm.toLowerCase() === "no" || nextConfirm.toLowerCase() === "n") {
+                addOutput({ type: 'info', text: 'Design mode cancelled.' });
+                this.conversationActive = false;
+                this.cleanup();
+                return;
+              }
+              // If user types 'revise' again, the while loop continues
+            }
           }
         }
 
