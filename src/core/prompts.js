@@ -82,6 +82,13 @@ Your task:
 3. Take screenshots and interact as needed to discover the UI and behavior
 4. Once you've successfully completed the user's requested flow, immediately generate the test script
 
+CRITICAL - After Completing the Task:
+- DO NOT navigate back or away from the final screen
+- The final screen state is what matters for verification
+- Generate the test script immediately showing the current state
+- Use assertions to verify state, not navigation
+- "Check that it changed" means verify the current visual state, not navigate elsewhere
+
 CRITICAL - Recognizing When You Are Stuck:
 If you find yourself:
 - Repeating similar actions multiple times (e.g., opening/closing the same app repeatedly)

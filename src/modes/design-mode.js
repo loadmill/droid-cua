@@ -17,6 +17,7 @@ export class DesignMode {
     this.conversationActive = true;
     this.escPressed = false;
     this.recentActions = []; // Track recent actions for stuck detection
+    this.initialUserPrompt = null; // Store initial prompt for error recovery
   }
 
   /**
@@ -42,6 +43,9 @@ export class DesignMode {
       console.log("Design mode cancelled.");
       return;
     }
+
+    // Store for error recovery
+    this.initialUserPrompt = initialPrompt;
 
     // Add initial prompt to conversation
     this.session.addToTranscript(`[Design] ${initialPrompt}`);
@@ -366,33 +370,35 @@ export class DesignMode {
         // Show user-friendly error message
         console.error("\n⚠️ Error in design mode:", err.message);
 
-        if (err.message && err.message.includes("400")) {
-          console.log("\nThis is likely due to conversation state becoming too complex.");
-          console.log("I'll reset the conversation state and you can try again.");
-        }
+        // Automatic recovery - continue from where we left off using transcript
+        console.log("\nRecovering from error and continuing...");
 
-        console.log("\nFull error details have been logged to the debug log.");
+        // Build recovery context with transcript
+        const designPrompt = buildDesignModePrompt(this.session.deviceInfo);
+        const recoveryContext = `${designPrompt}
 
-        const retry = await this.promptUser(
-          context.rl,
-          "\nRetry? (yes/no): "
-        );
+RECOVERY MODE:
+The previous session encountered an error and was interrupted. Here is everything that happened so far:
 
-        if (retry.toLowerCase() !== "yes" && retry.toLowerCase() !== "y") {
-          this.conversationActive = false;
-          return;
-        }
+${this.session.getTranscriptText()}
 
-        // Clear the last user message that caused the error
-        if (this.session.messages.length > 0) {
-          this.session.messages.pop();
-        }
+Continue from where we left off and complete the original task: "${this.initialUserPrompt}"
 
-        // Reset previousResponseId to start fresh conversation thread
+Remember:
+- Don't repeat actions that already succeeded
+- Continue towards generating the test script
+- If the flow was complete before the error, generate the script now`;
+
+        // Reset conversation state for fresh API call
+        this.session.clearMessages();
+        this.session.addMessage("system", recoveryContext);
         this.session.updateResponseId(null);
 
         // Reset action tracking
         this.recentActions = [];
+
+        // Continue the loop - will automatically get next response
+        continue;
       }
     }
 
