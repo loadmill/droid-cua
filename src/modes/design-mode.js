@@ -282,9 +282,9 @@ export class DesignMode {
           console.log("=============================\n");
 
           // Ask user to confirm
-          const confirm = await this.promptUser(
+          let confirm = await this.promptUser(
             context.rl,
-            "Save this test? (yes/no/revise): "
+            "Save this test? (yes/no or type changes): "
           );
 
           if (confirm.toLowerCase() === "yes" || confirm.toLowerCase() === "y") {
@@ -298,16 +298,13 @@ export class DesignMode {
             this.conversationActive = false;
             return;
           } else {
-            // User wants to revise - use simple text revision (no CUA)
+            // User typed changes directly - use simple text revision (no CUA)
             let currentScript = generatedScript;
             let revising = true;
 
             while (revising) {
-              console.log("\nRevision mode: Describe the changes you want.");
-              const revision = await this.promptUser(
-                context.rl,
-                "What changes would you like? "
-              );
+              // Use whatever the user typed as the revision
+              const revision = confirm;
 
               // Use simple chat completion for revision instead of CUA
               console.log("Revising test script...");
@@ -319,23 +316,23 @@ export class DesignMode {
               console.log("=============================\n");
 
               // Ask again
-              const nextConfirm = await this.promptUser(
+              confirm = await this.promptUser(
                 context.rl,
-                "Save this test? (yes/no/revise): "
+                "Save this test? (yes/no or type changes): "
               );
 
-              if (nextConfirm.toLowerCase() === "yes" || nextConfirm.toLowerCase() === "y") {
+              if (confirm.toLowerCase() === "yes" || confirm.toLowerCase() === "y") {
                 await this.saveGeneratedTest(currentScript);
                 console.log(`\n✓ Test saved as: ${this.testName}.dcua`);
                 console.log("You can run it with: /run " + this.testName);
                 this.conversationActive = false;
                 return;
-              } else if (nextConfirm.toLowerCase() === "no" || nextConfirm.toLowerCase() === "n") {
+              } else if (confirm.toLowerCase() === "no" || confirm.toLowerCase() === "n") {
                 console.log("Design mode cancelled.");
                 this.conversationActive = false;
                 return;
               }
-              // If user types 'revise' again, the while loop continues
+              // If user typed anything else (including 'revise'), the while loop continues with new confirm value
             }
           }
         }

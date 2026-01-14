@@ -287,8 +287,8 @@ export class DesignModeInk {
           addOutput({ type: 'system', text: '=============================' });
 
           // Ask user to confirm
-          addOutput({ type: 'system', text: 'Save this test? (yes/no/revise)' });
-          const confirm = await this.waitForUserInput();
+          addOutput({ type: 'system', text: 'Save this test? (yes/no or type changes)' });
+          let confirm = await this.waitForUserInput();
 
           if (confirm.toLowerCase() === "yes" || confirm.toLowerCase() === "y") {
             await this.saveGeneratedTest(generatedScript);
@@ -303,13 +303,13 @@ export class DesignModeInk {
             this.cleanup();
             return;
           } else {
-            // User wants to revise - use simple text revision (no CUA)
+            // User typed changes directly - use simple text revision (no CUA)
             let currentScript = generatedScript;
             let revising = true;
 
             while (revising) {
-              addOutput({ type: 'system', text: 'Revision mode: Describe the changes you want.' });
-              const revision = await this.waitForUserInput();
+              // Use whatever the user typed as the revision
+              const revision = confirm;
 
               // Use simple chat completion for revision instead of CUA
               addOutput({ type: 'info', text: 'Revising test script...' });
@@ -322,23 +322,23 @@ export class DesignModeInk {
               addOutput({ type: 'system', text: '=============================' });
 
               // Ask again
-              addOutput({ type: 'system', text: 'Save this test? (yes/no/revise)' });
-              const nextConfirm = await this.waitForUserInput();
+              addOutput({ type: 'system', text: 'Save this test? (yes/no or type changes)' });
+              confirm = await this.waitForUserInput();
 
-              if (nextConfirm.toLowerCase() === "yes" || nextConfirm.toLowerCase() === "y") {
+              if (confirm.toLowerCase() === "yes" || confirm.toLowerCase() === "y") {
                 await this.saveGeneratedTest(currentScript);
                 addOutput({ type: 'success', text: `Test saved as: ${this.testName}.dcua` });
                 addOutput({ type: 'info', text: `You can run it with: /run ${this.testName}` });
                 this.conversationActive = false;
                 this.cleanup();
                 return;
-              } else if (nextConfirm.toLowerCase() === "no" || nextConfirm.toLowerCase() === "n") {
+              } else if (confirm.toLowerCase() === "no" || confirm.toLowerCase() === "n") {
                 addOutput({ type: 'info', text: 'Design mode cancelled.' });
                 this.conversationActive = false;
                 this.cleanup();
                 return;
               }
-              // If user types 'revise' again, the while loop continues
+              // If user typed anything else (including 'revise'), the while loop continues with new confirm value
             }
           }
         }
