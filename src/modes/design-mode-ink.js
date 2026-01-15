@@ -287,7 +287,7 @@ export class DesignModeInk {
           addOutput({ type: 'system', text: '=============================' });
 
           // Ask user to confirm
-          addOutput({ type: 'system', text: 'Save this test? (yes/no or type changes)' });
+          addOutput({ type: 'system', text: 'Save this test? (yes/no or describe changes)' });
           let confirm = await this.waitForUserInput();
 
           if (confirm.toLowerCase() === "yes" || confirm.toLowerCase() === "y") {
@@ -322,7 +322,7 @@ export class DesignModeInk {
               addOutput({ type: 'system', text: '=============================' });
 
               // Ask again
-              addOutput({ type: 'system', text: 'Save this test? (yes/no or type changes)' });
+              addOutput({ type: 'system', text: 'Save this test? (yes/no or describe changes)' });
               confirm = await this.waitForUserInput();
 
               if (confirm.toLowerCase() === "yes" || confirm.toLowerCase() === "y") {

@@ -284,7 +284,7 @@ export class DesignMode {
           // Ask user to confirm
           let confirm = await this.promptUser(
             context.rl,
-            "Save this test? (yes/no or type changes): "
+            "Save this test? (yes/no or describe changes): "
           );
 
           if (confirm.toLowerCase() === "yes" || confirm.toLowerCase() === "y") {
@@ -318,7 +318,7 @@ export class DesignMode {
               // Ask again
               confirm = await this.promptUser(
                 context.rl,
-                "Save this test? (yes/no or type changes): "
+                "Save this test? (yes/no or describe changes): "
               );
 
               if (confirm.toLowerCase() === "yes" || confirm.toLowerCase() === "y") {
