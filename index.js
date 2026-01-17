@@ -1,12 +1,11 @@
 import minimist from "minimist";
 import path from "path";
-import { mkdir } from "fs/promises";
+import { mkdir, readFile } from "fs/promises";
 import { connectToDevice, getDeviceInfo } from "./src/device/connection.js";
 import { Session } from "./src/core/session.js";
 import { ExecutionEngine } from "./src/core/execution-engine.js";
 import { buildBaseSystemPrompt } from "./src/core/prompts.js";
 import { startInkShell } from "./src/cli/ink-shell.jsx";
-import { loadTest } from "./src/test-store/test-manager.js";
 import { ExecutionMode } from "./src/modes/execution-mode.js";
 import { logger } from "./src/utils/logger.js";
 
@@ -44,7 +43,13 @@ async function main() {
   if (instructionsFile) {
     console.log(`\nRunning test from: ${instructionsFile}\n`);
 
-    const instructions = await loadTest(instructionsFile);
+    // Read and parse the instructions file
+    const content = await readFile(instructionsFile, "utf-8");
+    const instructions = content
+      .split("\n")
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
     const executionMode = new ExecutionMode(session, engine, instructions, true); // true = headless mode
 
     const result = await executionMode.execute();
