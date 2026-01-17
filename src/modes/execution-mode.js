@@ -15,12 +15,13 @@ import { logger } from "../utils/logger.js";
  * Each instruction is executed in isolation (messages cleared after each turn)
  */
 export class ExecutionMode {
-  constructor(session, executionEngine, instructions) {
+  constructor(session, executionEngine, instructions, isHeadlessMode = false) {
     this.session = session;
     this.engine = executionEngine;
     this.instructions = instructions; // Array of instruction strings
     this.initialSystemText = session.systemPrompt;
     this.shouldStop = false; // Flag to stop execution (set by /stop command)
+    this.isHeadlessMode = isHeadlessMode; // true for CI/automated runs, false for interactive
   }
 
   /**
@@ -129,11 +130,16 @@ export class ExecutionMode {
           handleAssertionFailure(
             assertionPrompt,
             this.session.transcript,
-            false, // Never exit process - we'll always prompt the user
+            false, // Never exit process - we'll always prompt the user in interactive mode
             context
           );
 
-          // Ask user what to do
+          // In headless mode, exit immediately on assertion failure
+          if (this.isHeadlessMode) {
+            return { success: false, error: `Assertion failed: ${assertionPrompt}` };
+          }
+
+          // Interactive mode - ask user what to do
           addOutput({ type: 'system', text: 'What would you like to do? (retry/skip/stop)' });
 
           // Wait for user input

@@ -1,0 +1,8 @@
+Open Duolingo app and dismiss any offers or pop-ups  
+Click on blue diamond store icon  
+Scroll down  
+Click on "Redeem a promo code"  
+Type "TEST" in the input field  
+Click "APPLY"  
+assert: Network error message is visible in red  
+exit

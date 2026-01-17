@@ -1,0 +1,8 @@
+Open Duolingo app and dismiss any pop-ups or promos if they appear
+Navigate to Shop via blue diamond icon
+Scroll to find Redeem a coupon option
+Tap Redeem a promo code link
+Enter "TEST" in the promo code field
+Tap APPLY button
+assert: Network error! Please try again later is shown in red
+exit

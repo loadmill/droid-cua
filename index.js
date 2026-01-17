@@ -45,7 +45,7 @@ async function main() {
     console.log(`\nRunning test from: ${instructionsFile}\n`);
 
     const instructions = await loadTest(instructionsFile);
-    const executionMode = new ExecutionMode(session, engine, instructions);
+    const executionMode = new ExecutionMode(session, engine, instructions, true); // true = headless mode
 
     const result = await executionMode.execute();
 
