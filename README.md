@@ -1,160 +1,123 @@
 # droid-cua
 
-**Minimal AI agent that controls Android devices using OpenAI’s computer-use-preview model.**
+**AI-powered Android testing using OpenAI's computer-use model**
+
+Create and run automated Android tests using natural language. The AI explores your app and generates executable test scripts.
 
 https://github.com/user-attachments/assets/36b2ea7e-820a-432d-9294-8aa61dceb4b0
 
 ---
 
-## 🚀 How It Works
-
-1. Connects to a running Android emulator.
-2. Captures full-screen device screenshots.
-3. Scales down the screenshots for OpenAI model compatibility.
-4. Sends screenshots and user instructions to OpenAI’s computer-use-preview model.
-5. Receives structured actions (click, scroll, type, keypress, wait, drag).
-6. Rescales model outputs back to real device coordinates.
-7. Executes the actions on the device.
-8. Repeats until you type `exit`.
-
----
-
-## 🛠 Setup
-
-1. Install dependencies:
-   ```sh
-   npm install
-   ```
-
-2. Create a `.env` file with your OpenAI API key:
-   ```sh
-   echo "OPENAI_API_KEY=your-api-key" > .env
-   ```
-
-3. Make sure Android Debug Bridge (ADB) is available in your system PATH:
-   ```sh
-   adb version
-   ```
-
-4. Start your Android emulator manually (optional):
-   ```sh
-   emulator -avd Your_AVD_Name
-   ```
-
-5. Run the agent:
-   ```sh
-   node index.js --avd=Your_AVD_Name
-   ```
-
-   If no `--avd` is provided, the agent will try to connect to the first running device.
-
----
-
-## 🧠 Features
-
-- Captures screenshots directly from the device (`adb exec-out screencap -p`).
-- Dynamically scales screenshots for OpenAI compatibility.
-- Maps model-generated actions (click, scroll, drag, type, keypress, wait) back to real device coordinates.
-- Connects automatically to a running emulator or launches it if needed.
-- Pretends the device screen is embedded inside a browser page for environment compatibility.
-
----
-
-## 📄 Command Line Flags
-
-| Flag                      | Description                                                             |
-| :------------------------ | :---------------------------------------------------------------------- |
-| `--avd=AVD_NAME`          | Select the emulator device by AVD name.                                 |
-| `--instructions=FILENAME` | Load user instructions from a text file.                                |
-| `--record`                | Save every screenshot into a folder for later review or video creation. |
-
----
-
-## 📋 Example Usage
-
-Start your emulator:
+## Quick Start
 
 ```sh
-emulator -avd Pixel_5_API_34
-```
+# Install
+npm install -g @loadmill/droid-cua
 
-Run the agent:
+# Set API key
+export OPENAI_API_KEY=your-key
 
-```sh
-node index.js --avd=Pixel_5_API_34
-```
-
-Run with an instructions file:
-
-```sh
-node index.js --avd=Pixel_5_API_34 --instructions=tests/example.dcua
+# Run
+droid-cua
 ```
 
 ---
 
-## ✅ Assertions
+## Features
 
-Assertions allow you to validate the state of the device during script execution. If an assertion fails, the script stops and reports the failure.
+- **Design Mode** - Describe what to test, AI explores and creates test scripts
+- **Execution Mode** - Run tests with real-time feedback and assertion handling
+- **Headless Mode** - Run tests in CI/CD pipelines
+- **Test Management** - Create, edit, view, and run test scripts
+- **Smart Actions** - Automatic wait detection and coordinate mapping
 
-### Syntax
+---
 
-Add assertions to your script using the `assert` keyword (case-insensitive, colon optional):
+## Usage
 
+### Interactive Commands
+
+| Command | Description |
+|---------|-------------|
+| `/create <name>` | Create a new test |
+| `/run <name>` | Execute a test |
+| `/list` | List all tests |
+| `/view <name>` | View test contents |
+| `/edit <name>` | Edit a test |
+| `/help` | Show help |
+| `/exit` | Exit shell |
+
+### Creating Tests
+
+```sh
+droid-cua
+> /create login-test
+> Test the login flow with valid credentials
 ```
-assert: <condition to validate>
+
+The AI will explore your app and generate a test script. Review and save it.
+
+### Running Tests
+
+Interactive:
+```sh
+droid-cua
+> /run login-test
 ```
 
-## Example Script 
+Headless (CI/CD):
+```sh
+droid-cua --instructions tests/login-test.dcua
+```
+
+### Test Script Format
+
+One instruction per line:
 
 ```
 Open the Calculator app
-assert: the Calculator app is open
-Type "5"
+assert: Calculator app is visible
+Type "2"
 Click the plus button
 Type "3"
 Click the equals button
-Assert the result shows 8
+assert: result shows 5
 exit
 ```
 
 ---
 
-## 📦 Requirements
+## Command Line Options
 
-- Node.js 18 or higher
-- A running Android emulator (AVD)
-- Android Debug Bridge (ADB) installed and available in system PATH
-- OpenAI Tier 3 access for the computer-use-preview model
-
-> [!NOTE]  
-> Your OpenAI account must be **Tier 3** to access the computer-use-preview model.  
-> Learn more: [OpenAI Computer Use Preview](https://platform.openai.com/docs/models/computer-use-preview)
+| Option | Description |
+|--------|-------------|
+| `--avd=NAME` | Specify emulator |
+| `--instructions=FILE` | Run test headless |
+| `--record` | Save screenshots |
+| `--debug` | Enable debug logs |
 
 ---
 
-## 📁 Project Structure
+## Requirements
 
-| Directory/File | Responsibility |
-|----------------|-----------------|
-| `index.js`     | Main entry point and control loop. |
-| `src/core/`    | Execution engine, session management, system prompts. |
-| `src/device/`  | ADB device connection, actions, assertions, OpenAI client. |
-| `tests/`       | Test script files (*.dcua). |
+- Node.js 18.17.0+
+- Android Debug Bridge (ADB)
+- Android Emulator (AVD)
+- OpenAI API Key (Tier 3 for computer-use-preview model)
 
 ---
 
-## 🎞️ Convert Screenshots to Video (Optional)
+## How It Works
 
-If you run the agent with the `--record` flag, it saves all screenshots to a folder like:
+1. Connects to Android emulator via ADB
+2. Captures and scales screenshots
+3. Sends to OpenAI computer-use-preview model
+4. Receives structured actions (click, scroll, type)
+5. Executes actions on device
+6. Validates assertions
 
-```
-droid-cua-recording-1715098765432/
-```
+---
 
-You can convert the frames into a video using `ffmpeg`:
+## License
 
-```sh
-ffmpeg -framerate 1 -pattern_type glob -i 'droid-cua-recording-*/frame_*.png' \
-  -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
-  -c:v libx264 -pix_fmt yuv420p session.mp4
-```
+© 2025 Loadmill. All rights reserved.
