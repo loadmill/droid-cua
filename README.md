@@ -107,14 +107,17 @@ exit
 
 ---
 
-## How It Works
+## 🚀 How It Works
 
-1. Connects to Android emulator via ADB
-2. Captures and scales screenshots
-3. Sends to OpenAI computer-use-preview model
-4. Receives structured actions (click, scroll, type)
-5. Executes actions on device
-6. Validates assertions
+1. Connects to a running Android emulator
+2. Captures full-screen device screenshots
+3. Scales down the screenshots for OpenAI model compatibility
+4. Sends screenshots and user instructions to OpenAI's computer-use-preview model
+5. Receives structured actions (click, scroll, type, keypress, wait, drag)
+6. Rescales model outputs back to real device coordinates
+7. Executes the actions on the device via ADB
+8. Validates assertions and handles failures
+9. Repeats until task completion
 
 ---
 
