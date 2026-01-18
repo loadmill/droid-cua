@@ -46,8 +46,8 @@
     "mobile-testing",
     "e2e"
   ],
-  "author": "Ido Cohen",
-  "license": "MIT",
+  "author": "Loadmill",
+  "license": "UNLICENSED",
   "dependencies": {
     "dotenv": "^16.4.7",
     "ink": "^4.4.1",
