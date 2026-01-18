@@ -39,16 +39,46 @@ Together, these let you create and execute Android tests without writing traditi
 
 <h2 id="quick-start">🚀 Quick Start</h2>
 
+**1. Install**
+
+Globally (recommended):
 ```sh
-# Install
 npm install -g @loadmill/droid-cua
+```
 
-# Set API key
-export OPENAI_API_KEY=your-key
+Or from source:
+```sh
+git clone https://github.com/loadmill/droid-cua
+cd droid-cua
+npm install
+npm run build
+```
 
-# Run
+**2. Set your OpenAI API key**
+
+Using environment variable:
+```sh
+export OPENAI_API_KEY=your-api-key
+```
+
+Or create a `.env` file:
+```sh
+echo "OPENAI_API_KEY=your-api-key" > .env
+```
+
+**3. Ensure ADB is available**
+
+```sh
+adb version
+```
+
+**4. Run**
+
+```sh
 droid-cua
 ```
+
+The emulator will auto-launch if not already running.
 
 ---
 
@@ -173,6 +203,22 @@ assert: login button is enabled
 7. Executes the actions on the device via ADB
 8. Validates assertions and handles failures
 9. Repeats until task completion
+
+---
+
+## 🎞️ Convert Screenshots to Video
+
+If you run with `--record`, screenshots are saved to:
+```
+droid-cua-recording-<timestamp>/
+```
+
+Convert to video with ffmpeg:
+```sh
+ffmpeg -framerate 1 -pattern_type glob -i 'droid-cua-recording-*/frame_*.png' \
+  -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
+  -c:v libx264 -pix_fmt yuv420p session.mp4
+```
 
 ---
 
