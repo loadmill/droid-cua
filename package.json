@@ -1,21 +1,50 @@
 {
-  "name": "droid-cua",
+  "name": "@loadmill/droid-cua",
   "version": "0.1.0",
-  "description": "A minimal AI agent that uses ADB to control Android emulators with OpenAI’s computer-use model.",
-  "main": "index.js",
+  "description": "AI-powered Android testing agent using OpenAI's computer-use model and ADB",
+  "main": "build/index.js",
   "type": "module",
+  "bin": {
+    "droid-cua": "bin/droid-cua"
+  },
+  "files": [
+    "build/**/*",
+    "bin/**/*",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "start": "tsx index.js"
+    "start": "tsx index.js",
+    "build": "tsc",
+    "clean": "rm -rf build",
+    "prerelease": "npm run build",
+    "release:patch": "npm version patch && npm publish",
+    "postversion": "git push && git push --tags"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loadmill/droid-cua.git"
+  },
+  "bugs": {
+    "url": "https://github.com/loadmill/droid-cua/issues"
+  },
+  "homepage": "https://github.com/loadmill/droid-cua",
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "openai",
     "adb",
     "android",
     "automation",
+    "testing",
     "ai",
     "emulator",
     "agent",
-    "cua"
+    "cua",
+    "computer-use",
+    "mobile-testing",
+    "e2e"
   ],
   "author": "Ido Cohen",
   "license": "MIT",
@@ -30,6 +59,10 @@
     "sharp": "^0.34.1"
   },
   "devDependencies": {
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18.17.0"
   }
 }
