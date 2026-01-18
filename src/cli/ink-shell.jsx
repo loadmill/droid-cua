@@ -1,6 +1,6 @@
 import React from 'react';
 import { render } from 'ink';
-import { App } from './app.jsx';
+import { App } from './app.js';
 import { parseInput } from './command-parser.js';
 import { routeCommand } from '../commands/index.js';
 

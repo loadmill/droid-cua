@@ -5,7 +5,7 @@ import { connectToDevice, getDeviceInfo } from "./src/device/connection.js";
 import { Session } from "./src/core/session.js";
 import { ExecutionEngine } from "./src/core/execution-engine.js";
 import { buildBaseSystemPrompt } from "./src/core/prompts.js";
-import { startInkShell } from "./src/cli/ink-shell.jsx";
+import { startInkShell } from "./src/cli/ink-shell.js";
 import { ExecutionMode } from "./src/modes/execution-mode.js";
 import { logger } from "./src/utils/logger.js";
 

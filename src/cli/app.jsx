@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Box } from 'ink';
-import { StatusBar } from './components/StatusBar.jsx';
-import { OutputPanel } from './components/OutputPanel.jsx';
-import { InputPanel } from './components/InputPanel.jsx';
-import { AgentStatus } from './components/AgentStatus.jsx';
-import { CommandSuggestions } from './components/CommandSuggestions.jsx';
+import { StatusBar } from './components/StatusBar.js';
+import { OutputPanel } from './components/OutputPanel.js';
+import { InputPanel } from './components/InputPanel.js';
+import { AgentStatus } from './components/AgentStatus.js';
+import { CommandSuggestions } from './components/CommandSuggestions.js';
 import { COMMANDS } from './command-parser.js';
 
 /**
