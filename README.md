@@ -85,6 +85,32 @@ assert: result shows 5
 exit
 ```
 
+### Assertions
+
+Assertions validate the app state during test execution. Add them anywhere in your test script.
+
+**Syntax** (all valid):
+```
+assert: the login button is visible
+Assert: error message appears
+ASSERT the result shows 5
+```
+
+**Interactive Mode** - When an assertion fails:
+- `retry` - Retry the same assertion
+- `skip` - Continue to next instruction
+- `stop` - Stop test execution
+
+**Headless Mode** - Assertions fail immediately and exit with code 1.
+
+**Examples**:
+```
+assert: Calculator app is open
+assert: the result shows 8
+assert: error message is displayed in red
+assert: login button is enabled
+```
+
 ---
 
 ## Command Line Options
