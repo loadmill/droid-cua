@@ -64,22 +64,25 @@ export function extractFailureDetails(transcript) {
   return parts[1]?.trim() || "Could not confidently validate the assertion.";
 }
 
-export function handleAssertionFailure(assertionPrompt, transcript, isHeadlessMode, rl) {
+export function handleAssertionFailure(assertionPrompt, transcript, isHeadlessMode, context) {
   const details = extractFailureDetails(transcript);
+  const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
 
-  console.log("\n❌ ASSERTION FAILED");
-  console.log(`Assertion: ${assertionPrompt}`);
-  console.log(`Details: ${details}`);
-  console.log("");
+  addOutput({ type: 'error', text: '❌ ASSERTION FAILED' });
+  addOutput({ type: 'error', text: `Assertion: ${assertionPrompt}` });
+  addOutput({ type: 'error', text: `Details: ${details}` });
 
   if (isHeadlessMode) {
     // Headless mode: exit with error code
-    rl.close();
+    if (context?.exit) {
+      context.exit();
+    }
     process.exit(1);
   }
   // Interactive mode: caller should clear remaining instructions
 }
 
-export function handleAssertionSuccess(assertionPrompt) {
-  console.log(`✓ Assertion passed: ${assertionPrompt}`);
+export function handleAssertionSuccess(assertionPrompt, context = null) {
+  const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
+  addOutput({ type: 'success', text: `✓ Assertion passed: ${assertionPrompt}` });
 }
