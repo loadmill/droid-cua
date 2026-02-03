@@ -143,3 +143,6 @@ dist
 
 # MacOS
 .DS_Store
+
+# Demo test files (for local testing)
+tests/*-demo.dcua

@@ -10,6 +10,7 @@ import { handleList } from './list.js';
 import { handleView } from './view.js';
 import { handleEdit } from './edit.js';
 import { handleStop } from './stop.js';
+import { handleLoadmill } from './loadmill.js';
 
 /**
  * Map of command names to their handlers
@@ -24,6 +25,7 @@ const COMMAND_HANDLERS = {
   view: handleView,
   edit: handleEdit,
   stop: handleStop,
+  loadmill: handleLoadmill,
 };
 
 /**

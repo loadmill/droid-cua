@@ -51,6 +51,7 @@ export const COMMANDS = {
   view: 'View test contents with line numbers',
   edit: 'Edit a test in your default editor',
   stop: 'Stop current test creation or execution',
+  loadmill: 'Run Loadmill test flows using natural language',
 };
 
 /**

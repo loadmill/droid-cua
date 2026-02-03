@@ -25,6 +25,9 @@ export async function handleHelp(args, session, context) {
   addOutput({ type: 'info', text: '  /view <test-name>        View test contents with line numbers' });
   addOutput({ type: 'info', text: '  /edit <test-name>        Edit a test in your default editor' });
   addOutput({ type: 'info', text: '' });
+  addOutput({ type: 'info', text: 'Integrations:' });
+  addOutput({ type: 'info', text: '  /loadmill <command>      Run Loadmill test flows using natural language' });
+  addOutput({ type: 'info', text: '' });
   addOutput({ type: 'info', text: 'Examples:' });
   addOutput({ type: 'info', text: '  /create login-test       (design a new test)' });
   addOutput({ type: 'info', text: '  /list                    (see all tests)' });

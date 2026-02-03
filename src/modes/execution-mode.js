@@ -8,6 +8,11 @@ import {
   handleAssertionFailure,
   handleAssertionSuccess,
 } from "../device/assertions.js";
+import {
+  isLoadmillInstruction,
+  extractLoadmillCommand,
+  executeLoadmillInstruction,
+} from "../device/loadmill.js";
 import { logger } from "../utils/logger.js";
 
 /**
@@ -85,6 +90,25 @@ export class ExecutionMode {
    */
   async executeInstruction(instruction, context) {
     const addOutput = context.addOutput || ((item) => console.log(item.text || item));
+
+    // ── Check for Loadmill instruction ──
+    if (isLoadmillInstruction(instruction)) {
+      const loadmillCommand = extractLoadmillCommand(instruction);
+      this.session.addToTranscript(`[Loadmill] ${loadmillCommand}`);
+
+      const result = await executeLoadmillInstruction(
+        loadmillCommand,
+        this.isHeadlessMode,
+        context
+      );
+
+      // Handle retry request from interactive mode
+      if (result.retry) {
+        return await this.executeInstruction(instruction, context);
+      }
+
+      return result;
+    }
 
     // ── Check for assertion ──
     const isAssertionStep = isAssertion(instruction);
