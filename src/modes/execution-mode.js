@@ -136,8 +136,19 @@ export class ExecutionMode {
         this.session.deviceInfo
       );
 
+      // When continuing with previousResponseId, only send the new instruction
+      // The server already has full context from previous responses
+      let messagesToSend;
+      if (this.session.previousResponseId && !isAssertionStep) {
+        // Only send the new user instruction
+        messagesToSend = [{ role: "user", content: instruction }];
+      } else {
+        // Fresh start or assertion - send full messages (system + user)
+        messagesToSend = this.session.messages;
+      }
+
       const response = await sendCUARequest({
-        messages: this.session.messages,
+        messages: messagesToSend,
         screenshotBase64,
         previousResponseId: this.session.previousResponseId,
         deviceInfo: this.session.deviceInfo,
@@ -193,8 +204,10 @@ export class ExecutionMode {
         }
       }
 
-      // Clear messages after each turn (isolated execution)
+      // Clear messages after each turn but KEEP the response chain for context
+      // When continuing with previousResponseId, only send new user message (not system)
       this.session.clearMessages();
+      // Note: we keep previousResponseId to maintain context across the test
       return { success: true };
     } catch (err) {
       // Log full error details to file
@@ -211,15 +224,23 @@ export class ExecutionMode {
       const addOutput = context.addOutput || ((item) => console.log(item.text || item));
       addOutput({ type: 'info', text: 'Connection issue. Retrying...' });
 
-      const summary = `The last session failed. Let's try again based on the last user message.
-      Here's a transcript of everything that happened so far:
-      \n\n${this.session.getTranscriptText()}\n\n${this.initialSystemText}`;
+      // Build context for retry - include transcript in system message to avoid conversational responses
+      const transcriptContext = this.session.getTranscriptText();
 
       this.session.clearMessages();
-      this.session.addMessage("system", summary);
+      // clearMessages() restores the base system prompt, but we need to add context
+
+      // Build enhanced system prompt with recovery context
+      let recoverySystemPrompt = this.initialSystemText;
+      if (transcriptContext) {
+        recoverySystemPrompt += `\n\n[SESSION RECOVERY - Connection was lost. Previous actions completed before the error:]\n${transcriptContext}\n\n[IMPORTANT: Resume execution silently. Do NOT narrate or explain. Just execute the next instruction.]`;
+      }
+
+      // Replace the system message with the enhanced one
+      this.session.messages = [{ role: "system", content: recoverySystemPrompt }];
       this.session.updateResponseId(undefined);
 
-      // Retry the same instruction
+      // Retry the same instruction (executeInstruction will add the user message)
       return await this.executeInstruction(instruction, context);
     }
   }

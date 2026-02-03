@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box } from 'ink';
+import { Box, useInput } from 'ink';
 import { StatusBar } from './components/StatusBar.js';
 import { OutputPanel } from './components/OutputPanel.js';
 import { InputPanel } from './components/InputPanel.js';
@@ -23,6 +23,9 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
   const [isExecutionMode, setIsExecutionMode] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [inputResolver, setInputResolver] = useState(null); // For waiting on user input
+  const [commandHistory, setCommandHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [tempInput, setTempInput] = useState(''); // Store current typing when navigating history
 
   // Context object passed to modes and commands
   const context = {
@@ -79,6 +82,36 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
     },
   };
 
+  // Handle up/down arrow keys for command history
+  useInput((input, key) => {
+    if (inputDisabled) return;
+
+    if (key.upArrow && commandHistory.length > 0) {
+      const newIndex = historyIndex === -1
+        ? commandHistory.length - 1
+        : Math.max(0, historyIndex - 1);
+
+      if (historyIndex === -1) {
+        setTempInput(inputValue); // Save current input
+      }
+      setHistoryIndex(newIndex);
+      setInputValue(commandHistory[newIndex]);
+    }
+
+    if (key.downArrow) {
+      if (historyIndex === -1) return;
+
+      const newIndex = historyIndex + 1;
+      if (newIndex >= commandHistory.length) {
+        setHistoryIndex(-1);
+        setInputValue(tempInput); // Restore saved input
+      } else {
+        setHistoryIndex(newIndex);
+        setInputValue(commandHistory[newIndex]);
+      }
+    }
+  });
+
   // Make context available globally for modes
   useEffect(() => {
     if (typeof global !== 'undefined') {
@@ -109,6 +142,13 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
       setInputValue('');
       return;
     }
+
+    // Add to command history (avoid duplicates of last command)
+    if (input && input !== commandHistory[commandHistory.length - 1]) {
+      setCommandHistory(prev => [...prev, input]);
+    }
+    setHistoryIndex(-1);
+    setTempInput('');
 
     // Add user input to output
     context.addOutput({ type: 'user', text: input });
