@@ -1,58 +1,86 @@
 /**
- * Interactive device selection menu
+ * Interactive device selection menu using Ink
  */
 
+import React, { useState } from 'react';
+import { render, Box, Text, useInput, useApp } from 'ink';
 import { exec } from "child_process";
 import { promisify } from "util";
-import readline from "readline";
 
 const execAsync = promisify(exec);
 
 /**
- * Create a readline interface for user input
+ * Interactive selection component with arrow key navigation
  */
-function createReadline() {
-  return readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
+function SelectList({ title, items, onSelect }) {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const { exit } = useApp();
+
+  useInput((input, key) => {
+    if (key.upArrow) {
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : items.length - 1));
+    }
+    if (key.downArrow) {
+      setSelectedIndex((prev) => (prev < items.length - 1 ? prev + 1 : 0));
+    }
+    if (key.return) {
+      onSelect(items[selectedIndex]);
+    }
+    if (input === 'q' || key.escape) {
+      exit();
+      process.exit(0);
+    }
   });
+
+  return (
+    <Box flexDirection="column">
+      <Box borderStyle="single" borderColor="cyan" paddingX={1} marginBottom={1}>
+        <Text bold color="cyan">{title}</Text>
+      </Box>
+
+      <Box flexDirection="column" paddingX={1}>
+        {items.map((item, index) => {
+          const isSelected = index === selectedIndex;
+          return (
+            <Box key={item.value + index}>
+              <Text color={isSelected ? 'green' : undefined}>
+                {isSelected ? '❯ ' : '  '}
+              </Text>
+              <Text bold={isSelected} color={isSelected ? 'green' : undefined}>
+                {item.label}
+              </Text>
+            </Box>
+          );
+        })}
+      </Box>
+
+      <Box marginTop={1} paddingX={1}>
+        <Text dimColor>↑/↓ Navigate  Enter Select  q Quit</Text>
+      </Box>
+    </Box>
+  );
 }
 
 /**
- * Prompt user to select from a list of options
- * @param {string} question - The question to ask
- * @param {Array<{label: string, value: string}>} options - Available options
- * @returns {Promise<string>} Selected value
+ * Render a selection and wait for result
  */
-async function selectFromList(question, options) {
-  const rl = createReadline();
-
-  console.log(`\n${question}\n`);
-  options.forEach((opt, i) => {
-    console.log(`  ${i + 1}. ${opt.label}`);
-  });
-  console.log();
-
+function renderSelection(title, items) {
   return new Promise((resolve) => {
-    const ask = () => {
-      rl.question(`Select (1-${options.length}): `, (answer) => {
-        const index = parseInt(answer, 10) - 1;
-        if (index >= 0 && index < options.length) {
-          rl.close();
-          resolve(options[index].value);
-        } else {
-          console.log("Invalid selection, try again.");
-          ask();
-        }
-      });
-    };
-    ask();
+    const { unmount } = render(
+      <SelectList
+        title={title}
+        items={items}
+        onSelect={(item) => {
+          unmount();
+          resolve(item);
+        }}
+      />
+    );
   });
 }
 
 /**
  * Get list of available Android AVDs
- * @returns {Promise<Array<{label: string, value: string, running: boolean}>>}
  */
 async function getAndroidDevices() {
   const devices = [];
@@ -86,7 +114,6 @@ async function getAndroidDevices() {
     const avds = stdout.trim().split("\n").filter((name) => name.length > 0);
 
     for (const avd of avds) {
-      // Don't add if already in running list
       if (!devices.some((d) => d.value === avd)) {
         devices.push({
           label: avd,
@@ -101,8 +128,7 @@ async function getAndroidDevices() {
 }
 
 /**
- * Get list of available iOS Simulators
- * @returns {Promise<Array<{label: string, value: string, running: boolean}>>}
+ * Get list of available iOS Simulators (iPhones only)
  */
 async function getIOSDevices() {
   const devices = [];
@@ -110,17 +136,13 @@ async function getIOSDevices() {
   try {
     const { stdout } = await execAsync("xcrun simctl list devices --json");
     const data = JSON.parse(stdout);
-
-    // Collect all available devices, noting which are booted
     const seen = new Set();
 
     for (const [runtime, deviceList] of Object.entries(data.devices)) {
-      // Extract iOS version from runtime string
       const versionMatch = runtime.match(/iOS[- ](\d+[-\.]\d+)/i);
       const version = versionMatch ? versionMatch[1].replace("-", ".") : "";
 
       for (const device of deviceList) {
-        // Only include iPhones (skip iPads, Apple TVs, Apple Watches, etc.)
         if (device.isAvailable && !seen.has(device.name) && device.name.startsWith("iPhone")) {
           seen.add(device.name);
           const isBooted = device.state === "Booted";
@@ -172,7 +194,7 @@ export async function selectDevice() {
   if (hasAndroid) {
     const runningCount = androidDevices.filter((d) => d.running).length;
     platformOptions.push({
-      label: `Android${runningCount > 0 ? ` (${runningCount} running)` : ""} - ${androidDevices.length} device(s)`,
+      label: `Android${runningCount > 0 ? ` (${runningCount} running)` : ""} - ${androidDevices.length} emulator(s)`,
       value: "android",
     });
   }
@@ -188,38 +210,27 @@ export async function selectDevice() {
   let platform;
   if (platformOptions.length === 1) {
     platform = platformOptions[0].value;
-    console.log(`\nUsing ${platform} (only available platform)`);
+    console.log(`\nUsing ${platform} (only available platform)\n`);
   } else {
-    platform = await selectFromList("Select platform:", platformOptions);
+    const selected = await renderSelection("Select Platform", platformOptions);
+    platform = selected.value;
   }
 
   // Select device
   const deviceList = platform === "ios" ? iosDevices : androidDevices;
+  const deviceType = platform === "ios" ? "Simulator" : "Emulator";
 
   let deviceName;
   if (deviceList.length === 1) {
     deviceName = deviceList[0].value;
-    console.log(`Using ${deviceName} (only available device)`);
+    console.log(`Using ${deviceName} (only available ${deviceType.toLowerCase()})\n`);
   } else {
-    // Check for running device - prefer it
-    const runningDevice = deviceList.find((d) => d.running);
-    if (runningDevice) {
-      // Move running device to top of list
-      const sorted = [
-        runningDevice,
-        ...deviceList.filter((d) => d !== runningDevice),
-      ];
-      deviceName = await selectFromList(
-        `Select ${platform === "ios" ? "simulator" : "emulator"}:`,
-        sorted
-      );
-    } else {
-      deviceName = await selectFromList(
-        `Select ${platform === "ios" ? "simulator" : "emulator"}:`,
-        deviceList
-      );
-    }
+    const selected = await renderSelection(`Select ${deviceType}`, deviceList);
+    deviceName = selected.value;
   }
+
+  // Clear some space after selection
+  console.log();
 
   return { platform, deviceName };
 }

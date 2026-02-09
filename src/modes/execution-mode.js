@@ -1,4 +1,4 @@
-import { getScreenshotAsBase64 } from "../device/connection.js";
+import { getScreenshotAsBase64, connectToDevice, getDeviceInfo, getCurrentPlatform } from "../device/connection.js";
 import { sendCUARequest } from "../device/openai.js";
 import {
   isAssertion,
@@ -86,9 +86,11 @@ export class ExecutionMode {
    * Execute a single instruction
    * @param {string} instruction - The instruction to execute
    * @param {Object} context - Additional context
+   * @param {number} retryCount - Current retry attempt (internal use)
    * @returns {Promise<{success: boolean, error?: string}>}
    */
-  async executeInstruction(instruction, context) {
+  async executeInstruction(instruction, context, retryCount = 0) {
+    const MAX_RETRIES = 3;
     const addOutput = context.addOutput || ((item) => console.log(item.text || item));
 
     // ── Check for Loadmill instruction ──
@@ -211,8 +213,9 @@ export class ExecutionMode {
       return { success: true };
     } catch (err) {
       // Log full error details to file
-      logger.error('Execution instruction error (will retry)', {
+      logger.error('Execution instruction error', {
         instruction,
+        retryCount,
         message: err.message,
         status: err.status,
         code: err.code,
@@ -222,7 +225,35 @@ export class ExecutionMode {
       });
 
       const addOutput = context.addOutput || ((item) => console.log(item.text || item));
-      addOutput({ type: 'info', text: 'Connection issue. Retrying...' });
+
+      // Check if we've exceeded max retries
+      if (retryCount >= MAX_RETRIES) {
+        addOutput({ type: 'error', text: `Failed after ${MAX_RETRIES} retries. Device may be disconnected.` });
+
+        // Attempt to reconnect to the device
+        addOutput({ type: 'info', text: 'Attempting to reconnect to device...' });
+        try {
+          const platform = getCurrentPlatform();
+          const deviceName = this.session.deviceName || undefined;
+          const deviceId = await connectToDevice(deviceName, platform);
+          const deviceInfo = await getDeviceInfo(deviceId);
+
+          // Update session with new connection
+          this.session.deviceId = deviceId;
+          this.session.deviceInfo = deviceInfo;
+
+          addOutput({ type: 'success', text: 'Reconnected to device. Resuming...' });
+
+          // Reset retry count and try again
+          return await this.executeInstruction(instruction, context, 0);
+        } catch (reconnectErr) {
+          logger.error('Failed to reconnect to device', { error: reconnectErr.message });
+          addOutput({ type: 'error', text: `Could not reconnect to device: ${reconnectErr.message}` });
+          return { success: false, error: 'Device disconnected and reconnection failed' };
+        }
+      }
+
+      addOutput({ type: 'info', text: `Connection issue. Retrying... (${retryCount + 1}/${MAX_RETRIES})` });
 
       // Build context for retry - include transcript in system message to avoid conversational responses
       const transcriptContext = this.session.getTranscriptText();
@@ -240,8 +271,11 @@ export class ExecutionMode {
       this.session.messages = [{ role: "system", content: recoverySystemPrompt }];
       this.session.updateResponseId(undefined);
 
-      // Retry the same instruction (executeInstruction will add the user message)
-      return await this.executeInstruction(instruction, context);
+      // Wait a bit before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Retry the same instruction with incremented counter
+      return await this.executeInstruction(instruction, context, retryCount + 1);
     }
   }
 }
