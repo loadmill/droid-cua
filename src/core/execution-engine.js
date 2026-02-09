@@ -1,6 +1,6 @@
 import path from "path";
 import { writeFile } from "fs/promises";
-import { getScreenshotAsBase64 } from "../device/connection.js";
+import { getScreenshotAsBase64, getCurrentPlatform } from "../device/connection.js";
 import { handleModelAction } from "../device/actions.js";
 import { sendCUARequest } from "../device/openai.js";
 
@@ -106,7 +106,7 @@ export class ExecutionEngine {
             type: "computer_screenshot",
             image_url: `data:image/png;base64,${screenshotBase64}`,
           },
-          current_url: "android://emulator", // Android emulator doesn't have URLs like a browser
+          current_url: getCurrentPlatform() === "ios" ? "ios://simulator" : "android://emulator",
           ...(pendingSafetyChecks.length > 0 ? { acknowledged_safety_checks: pendingSafetyChecks } : {})
         }];
 

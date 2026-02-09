@@ -17,9 +17,9 @@
 
 ---
 
-**AI-powered Android testing using OpenAI's computer-use model**
+**AI-powered mobile testing using OpenAI's computer-use model**
 
-Create and run automated Android tests using natural language. The AI explores your app and generates executable test scripts.
+Create and run automated Android and iOS tests using natural language. The AI explores your app and generates executable test scripts.
 
 https://github.com/user-attachments/assets/36b2ea7e-820a-432d-9294-8aa61dceb4b0
 
@@ -27,13 +27,13 @@ https://github.com/user-attachments/assets/36b2ea7e-820a-432d-9294-8aa61dceb4b0
 
 <h2 id="what-is-droid-cua">💡 What is droid-cua?</h2>
 
-`droid-cua` gives you three core components for Android testing:
+`droid-cua` gives you three core components for mobile testing:
 
 * **Interactive Shell** – Design and run tests with real-time feedback and visual status indicators
 * **Test Scripts** – Simple text files with natural language instructions and assertions
 * **AI Agent** – Autonomous exploration powered by OpenAI's computer-use model
 
-Together, these let you create and execute Android tests without writing traditional test code.
+Together, these let you create and execute Android and iOS tests without writing traditional test code.
 
 ---
 
@@ -66,10 +66,18 @@ Or create a `.env` file:
 echo "OPENAI_API_KEY=your-api-key" > .env
 ```
 
-**3. Ensure ADB is available**
+**3. Setup for your platform**
 
+For Android:
 ```sh
-adb version
+adb version  # Ensure ADB is available
+```
+
+For iOS (macOS only):
+```sh
+# Install Appium and XCUITest driver
+npm install -g appium
+appium driver install xcuitest
 ```
 
 **4. Run**
@@ -78,7 +86,20 @@ adb version
 droid-cua
 ```
 
-The emulator will auto-launch if not already running.
+An interactive menu will let you select your platform and device:
+
+```
+┌──────────────────────────────────────┐
+│ Select Platform                      │
+└──────────────────────────────────────┘
+
+❯ Android (1 running) - 2 emulator(s)
+  iOS - 5 simulator(s)
+
+↑/↓ Navigate  Enter Select  q Quit
+```
+
+The emulator/simulator will auto-launch if not already running.
 
 ---
 
@@ -176,31 +197,58 @@ assert: login button is enabled
 
 | Option | Description |
 |--------|-------------|
-| `--avd=NAME` | Specify emulator |
+| `--avd=NAME` | Specify emulator/simulator name |
+| `--platform=PLATFORM` | Force platform: `android` or `ios` |
 | `--instructions=FILE` | Run test headless |
 | `--record` | Save screenshots |
 | `--debug` | Enable debug logs |
+
+**Examples:**
+```sh
+# Interactive device selection
+droid-cua
+
+# Android emulator
+droid-cua --avd Pixel_8_API_35
+
+# iOS Simulator (auto-detected from name)
+droid-cua --avd "iPhone 16"
+
+# iOS Simulator (explicit platform)
+droid-cua --platform ios --avd "iPhone 16"
+
+# Headless CI mode
+droid-cua --avd "iPhone 16" --instructions tests/login.dcua
+```
 
 ---
 
 ## Requirements
 
+**All platforms:**
 - Node.js 18.17.0+
+- OpenAI API Key (Tier 3 for computer-use-preview model)
+
+**Android:**
 - Android Debug Bridge (ADB)
 - Android Emulator (AVD)
-- OpenAI API Key (Tier 3 for computer-use-preview model)
+
+**iOS (macOS only):**
+- Xcode with iOS Simulator
+- Appium (`npm install -g appium`)
+- XCUITest driver (`appium driver install xcuitest`)
 
 ---
 
 <h2 id="how-it-works">🔧 How It Works</h2>
 
-1. Connects to a running Android emulator
+1. Connects to Android emulator (via ADB) or iOS Simulator (via Appium)
 2. Captures full-screen device screenshots
 3. Scales down the screenshots for OpenAI model compatibility
 4. Sends screenshots and user instructions to OpenAI's computer-use-preview model
 5. Receives structured actions (click, scroll, type, keypress, wait, drag)
 6. Rescales model outputs back to real device coordinates
-7. Executes the actions on the device via ADB
+7. Executes the actions on the device
 8. Validates assertions and handles failures
 9. Repeats until task completion
 

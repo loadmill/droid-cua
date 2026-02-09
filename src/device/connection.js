@@ -1,142 +1,67 @@
-import { exec, spawn } from "child_process";
-import { once } from "events";
-import { promisify } from "util";
-import sharp from "sharp";
-import { logger } from "../utils/logger.js";
+/**
+ * Device Connection Module
+ *
+ * Thin wrapper that delegates to the appropriate platform backend.
+ * Maintains backwards compatibility with existing code.
+ */
 
-const execAsync = promisify(exec);
+import { getDeviceBackend, detectPlatform, setCurrentPlatform, getCurrentPlatform } from "./factory.js";
 
-function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+let currentBackend = null;
+
+/**
+ * Connect to a device (Android emulator or iOS simulator)
+ * @param {string} deviceName - AVD name (Android) or Simulator name (iOS)
+ * @param {string} platform - Optional platform override ('android' or 'ios')
+ * @returns {Promise<string>} Device ID
+ */
+export async function connectToDevice(deviceName, platform = null) {
+  const detectedPlatform = platform || detectPlatform(deviceName);
+  setCurrentPlatform(detectedPlatform);
+  currentBackend = getDeviceBackend(detectedPlatform);
+
+  console.log(`Platform: ${detectedPlatform}`);
+
+  return currentBackend.connectToDevice(deviceName);
 }
 
-async function listConnectedDevices() {
-  const { stdout } = await execAsync("adb devices");
-  return stdout
-    .trim()
-    .split("\n")
-    .slice(1)
-    .map(line => line.split("\t")[0])
-    .filter(id => id.length > 0);
-}
-
-async function waitForDeviceConnection(avdName, timeoutMs = 120000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const devices = await listConnectedDevices();
-    const match = devices.find(id => id.includes(avdName));
-    if (match) return match;
-    await wait(2000);
-  }
-  return null;
-}
-
-async function waitForDeviceBoot(deviceId, timeoutMs = 60000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const { stdout } = await execAsync(`adb -s ${deviceId} shell getprop sys.boot_completed`);
-      if (stdout.trim() === "1") return true;
-    } catch {}
-    await wait(2000);
-  }
-  return false;
-}
-
-export async function connectToDevice(avdName) {
-  const devices = await listConnectedDevices();
-
-  for (const id of devices) {
-    if (id.startsWith("emulator-")) {
-      try {
-        const { stdout } = await execAsync(`adb -s ${id} emu avd name`);
-        if (stdout.trim() === avdName) {
-          console.log(`Emulator ${avdName} is already running as ${id}`);
-          return id;
-        }
-      } catch {}
-    }
-  }
-
-  console.log(`No emulator with AVD "${avdName}" is running. Launching...`);
-  const emulatorProcess = spawn("emulator", ["-avd", avdName], { detached: true, stdio: "ignore" });
-  emulatorProcess.unref();
-
-  const deviceId = await waitForDeviceConnection("emulator-", 120000);
-  if (!deviceId) {
-    console.error(`Emulator ${avdName} did not appear in time.`);
-    process.exit(1);
-  }
-
-  console.log(`Device ${deviceId} detected. Waiting for boot...`);
-  const booted = await waitForDeviceBoot(deviceId);
-  if (!booted) {
-    console.error(`Emulator ${avdName} did not finish booting.`);
-    process.exit(1);
-  }
-
-  console.log(`Emulator ${avdName} is fully booted.`);
-  return deviceId;
-}
-
+/**
+ * Get device info (screen dimensions and scale factor)
+ * @param {string} deviceId
+ * @returns {Promise<object>}
+ */
 export async function getDeviceInfo(deviceId) {
-  const { stdout } = await execAsync(`adb -s ${deviceId} shell wm size`);
-  const match = stdout.match(/Physical size:\s*(\d+)x(\d+)/);
-  if (!match) {
-    console.error("Could not get device screen size.");
-    process.exit(1);
+  if (!currentBackend) {
+    throw new Error("Not connected to a device. Call connectToDevice first.");
   }
-  const [_, width, height] = match.map(Number);
-
-  const targetWidth = 400;
-  const scale = width > targetWidth ? targetWidth / width : 1.0;
-  const scaledWidth = Math.round(width * scale);
-  const scaledHeight = Math.round(height * scale);
-
-  return {
-    device_width: width,
-    device_height: height,
-    scaled_width: scaledWidth,
-    scaled_height: scaledHeight,
-    scale,
-  };
+  return currentBackend.getDeviceInfo(deviceId);
 }
 
+/**
+ * Get screenshot as base64 string
+ * @param {string} deviceId
+ * @param {object} deviceInfo
+ * @returns {Promise<string>}
+ */
 export async function getScreenshotAsBase64(deviceId, deviceInfo) {
-  const adb = spawn("adb", ["-s", deviceId, "exec-out", "screencap", "-p"]);
-  const chunks = [];
-  const stderrChunks = [];
-
-  adb.stdout.on("data", chunk => chunks.push(chunk));
-  adb.stderr.on("data", err => {
-    stderrChunks.push(err);
-    console.error("ADB stderr:", err.toString());
-  });
-
-  const [code] = await once(adb, "close");
-
-  if (code !== 0) {
-    const stderrOutput = Buffer.concat(stderrChunks).toString();
-    logger.error(`ADB screencap failed with code ${code}`, { stderr: stderrOutput });
-    throw new Error(`adb screencap exited with code ${code}`);
+  if (!currentBackend) {
+    throw new Error("Not connected to a device. Call connectToDevice first.");
   }
+  return currentBackend.getScreenshotAsBase64(deviceId, deviceInfo);
+}
 
-  let buffer = Buffer.concat(chunks);
+/**
+ * Get the current platform
+ * @returns {string|null}
+ */
+export { getCurrentPlatform } from "./factory.js";
 
-  logger.debug(`Screenshot captured: ${buffer.length} bytes before scaling`);
-
-  if (buffer.length === 0) {
-    logger.error('Screenshot buffer is empty!', { deviceId, chunks: chunks.length });
-    throw new Error('Screenshot capture returned empty buffer');
+/**
+ * Disconnect from the device
+ */
+export async function disconnect() {
+  if (currentBackend?.disconnect) {
+    await currentBackend.disconnect();
   }
-
-  if (deviceInfo.scale < 1.0) {
-    buffer = await sharp(buffer)
-      .resize({ width: deviceInfo.scaled_width, height: deviceInfo.scaled_height})
-      .png()
-      .toBuffer();
-    logger.debug(`Screenshot scaled: ${buffer.length} bytes after scaling`);
-  }
-
-  return buffer.toString("base64");
+  currentBackend = null;
 }

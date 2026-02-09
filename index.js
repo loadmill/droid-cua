@@ -8,9 +8,11 @@ import { buildBaseSystemPrompt } from "./src/core/prompts.js";
 import { startInkShell } from "./src/cli/ink-shell.js";
 import { ExecutionMode } from "./src/modes/execution-mode.js";
 import { logger } from "./src/utils/logger.js";
+import { selectDevice } from "./src/cli/device-selector.jsx";
 
 const args = minimist(process.argv.slice(2));
-const avdName = args["avd"];
+let avdName = args["avd"];
+let platform = args["platform"] || null; // 'ios' or 'android'
 const recordScreenshots = args["record"] || false;
 const instructionsFile = args.instructions || args.i || null;
 const debugMode = args["debug"] || false;
@@ -22,8 +24,15 @@ const screenshotDir = path.join("droid-cua-recording-" + Date.now());
 if (recordScreenshots) await mkdir(screenshotDir, { recursive: true });
 
 async function main() {
+  // If no device specified, show interactive selection menu
+  if (!avdName && !platform) {
+    const selection = await selectDevice();
+    platform = selection.platform;
+    avdName = selection.deviceName;
+  }
+
   // Connect to device
-  const deviceId = await connectToDevice(avdName);
+  const deviceId = await connectToDevice(avdName, platform);
   const deviceInfo = await getDeviceInfo(deviceId);
   console.log(`Using real resolution: ${deviceInfo.device_width}x${deviceInfo.device_height}`);
   console.log(`Model sees resolution: ${deviceInfo.scaled_width}x${deviceInfo.scaled_height}`);
