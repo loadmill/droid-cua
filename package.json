@@ -1,6 +1,6 @@
 {
   "name": "@loadmill/droid-cua",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AI-powered Android testing agent using OpenAI's computer-use model and ADB",
   "main": "build/index.js",
   "type": "module",
