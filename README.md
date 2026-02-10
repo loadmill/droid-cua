@@ -21,7 +21,7 @@
 
 Create and run automated Android and iOS tests using natural language. The AI explores your app and generates executable test scripts.
 
-https://github.com/user-attachments/assets/9f91bab0-cb44-4cc6-a6b2-392ea902eda2
+https://github.com/user-attachments/assets/e6450f45-3700-4cb6-aad5-33ba5f0437c3
 
 ---
 
