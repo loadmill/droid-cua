@@ -8,7 +8,7 @@ import { buildBaseSystemPrompt } from "./src/core/prompts.js";
 import { startInkShell } from "./src/cli/ink-shell.js";
 import { ExecutionMode } from "./src/modes/execution-mode.js";
 import { logger } from "./src/utils/logger.js";
-import { selectDevice } from "./src/cli/device-selector.jsx";
+import { selectDevice } from "./src/cli/device-selector.js";
 
 const args = minimist(process.argv.slice(2));
 let avdName = args["avd"];
