@@ -1,9 +1,8 @@
-import { readdir, readFile, writeFile, unlink, stat } from "fs/promises";
+import { readdir, readFile, writeFile, unlink, stat, mkdir } from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TESTS_DIR = path.join(__dirname, "../../tests");
+// Tests directory is relative to current working directory
+const TESTS_DIR = path.join(process.cwd(), "tests");
 
 /**
  * Save a test script to the tests/ directory
@@ -16,6 +15,9 @@ export async function saveTest(name, content) {
   const cleanName = name.endsWith(".dcua") ? name.slice(0, -5) : name;
   const filename = `${cleanName}.dcua`;
   const filepath = path.join(TESTS_DIR, filename);
+
+  // Create tests directory if it doesn't exist
+  await mkdir(TESTS_DIR, { recursive: true });
 
   await writeFile(filepath, content, "utf-8");
   return filepath;
@@ -54,6 +56,13 @@ export async function getTestContent(name) {
  * @returns {Promise<Array<{name: string, path: string, lines: number, modified: Date}>>}
  */
 export async function listTests() {
+  // Return empty array if tests directory doesn't exist
+  try {
+    await stat(TESTS_DIR);
+  } catch {
+    return [];
+  }
+
   const files = await readdir(TESTS_DIR);
   const dcuaFiles = files.filter(f => f.endsWith(".dcua"));
 
