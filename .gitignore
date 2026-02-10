@@ -146,3 +146,6 @@ dist
 
 # Demo test files (for local testing)
 tests/*-demo.dcua
+
+# Claude Code local files
+.claude/*.local.*
