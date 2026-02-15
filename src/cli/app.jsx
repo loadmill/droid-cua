@@ -5,7 +5,8 @@ import { OutputPanel } from './components/OutputPanel.js';
 import { InputPanel } from './components/InputPanel.js';
 import { AgentStatus } from './components/AgentStatus.js';
 import { CommandSuggestions } from './components/CommandSuggestions.js';
-import { COMMANDS } from './command-parser.js';
+import { COMMANDS, getCommandSuggestions } from './command-parser.js';
+import { listTests } from '../test-store/test-manager.js';
 
 /**
  * Main Ink App component - conversational split-pane UI
@@ -26,6 +27,17 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
   const [commandHistory, setCommandHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [tempInput, setTempInput] = useState(''); // Store current typing when navigating history
+  const [availableTests, setAvailableTests] = useState([]); // For tab completion
+
+  // Load available tests for tab completion
+  const refreshTests = async () => {
+    try {
+      const tests = await listTests();
+      setAvailableTests(tests.map(t => t.name));
+    } catch {
+      setAvailableTests([]);
+    }
+  };
 
   // Context object passed to modes and commands
   const context = {
@@ -80,11 +92,43 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
         setInputResolver(() => resolve);
       });
     },
+
+    // Refresh tests list (for autocomplete)
+    refreshTests,
   };
 
-  // Handle up/down arrow keys for command history
+  // Handle up/down arrow keys for command history and Tab for autocomplete
   useInput((input, key) => {
     if (inputDisabled) return;
+
+    // Tab key for autocomplete
+    if (key.tab) {
+      if (inputValue.startsWith('/')) {
+        const parts = inputValue.slice(1).split(' ');
+        const commandPart = parts[0].toLowerCase();
+
+        if (parts.length === 1 && !inputValue.includes(' ')) {
+          // Autocomplete command name (e.g., /he -> /help)
+          const matches = getCommandSuggestions(commandPart);
+          if (matches.length === 1) {
+            setInputValue(`/${matches[0]} `);
+          }
+        } else if (parts.length >= 1) {
+          // Autocomplete test name for /run, /view, /edit
+          const testCommands = ['run', 'view', 'edit'];
+          if (testCommands.includes(commandPart)) {
+            const testPart = parts.slice(1).join(' ').toLowerCase();
+            const matchingTests = availableTests.filter(t =>
+              t.toLowerCase().startsWith(testPart)
+            );
+            if (matchingTests.length === 1) {
+              setInputValue(`/${commandPart} ${matchingTests[0]}`);
+            }
+          }
+        }
+      }
+      return;
+    }
 
     if (key.upArrow && commandHistory.length > 0) {
       const newIndex = historyIndex === -1
@@ -118,6 +162,10 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
       global.inkContext = context;
     }
   }, [context]);
+
+  useEffect(() => {
+    refreshTests();
+  }, []);
 
   // Show welcome banner on mount
   useEffect(() => {
@@ -179,7 +227,7 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
           placeholder={inputPlaceholder}
           disabled={inputDisabled}
         />
-        <CommandSuggestions input={inputValue} commands={COMMANDS} />
+        <CommandSuggestions input={inputValue} commands={COMMANDS} tests={availableTests} />
       </Box>
     </Box>
   );

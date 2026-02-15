@@ -27,6 +27,52 @@ export class ExecutionMode {
     this.initialSystemText = session.systemPrompt;
     this.shouldStop = false; // Flag to stop execution (set by /stop command)
     this.isHeadlessMode = isHeadlessMode; // true for CI/automated runs, false for interactive
+
+    // Stats tracking
+    this.stats = {
+      startTime: null,
+      actionCount: 0,
+      retryCount: 0,
+      assertionsPassed: 0,
+      assertionsFailed: 0,
+    };
+  }
+
+  /**
+   * Format duration in human-readable format (Xm Ys)
+   */
+  formatDuration(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+  }
+
+  /**
+   * Format stats for display
+   */
+  formatStats() {
+    const duration = Date.now() - this.stats.startTime;
+    const instructionCount = this.instructions.length;
+    const totalAssertions = this.stats.assertionsPassed + this.stats.assertionsFailed;
+
+    const lines = [
+      '',
+      `  Duration:     ${this.formatDuration(duration)}`,
+      `  Steps:        ${this.stats.actionCount} actions (${instructionCount} instructions)`,
+    ];
+
+    if (totalAssertions > 0) {
+      lines.push(`  Assertions:   ${this.stats.assertionsPassed}/${totalAssertions} passed`);
+    }
+
+    lines.push(`  Retries:      ${this.stats.retryCount}`);
+
+    return lines;
   }
 
   /**
@@ -36,6 +82,9 @@ export class ExecutionMode {
    */
   async execute(context = {}) {
     const addOutput = context.addOutput || ((item) => console.log(item.text || item));
+
+    // Start timing
+    this.stats.startTime = Date.now();
 
     for (let i = 0; i < this.instructions.length; i++) {
       // Check if execution should be stopped
@@ -79,6 +128,12 @@ export class ExecutionMode {
     }
 
     addOutput({ type: 'success', text: 'Test completed successfully.' });
+
+    // Display stats
+    for (const line of this.formatStats()) {
+      addOutput({ type: 'info', text: line });
+    }
+
     return { success: true };
   }
 
@@ -106,6 +161,7 @@ export class ExecutionMode {
 
       // Handle retry request from interactive mode
       if (result.retry) {
+        this.stats.retryCount++;
         return await this.executeInstruction(instruction, context);
       }
 
@@ -156,7 +212,15 @@ export class ExecutionMode {
         deviceInfo: this.session.deviceInfo,
       });
 
-      const newResponseId = await this.engine.runFullTurn(response, null, context);
+      // Track actions for stats
+      const trackAction = (action) => {
+        if (action && action.type !== 'screenshot') {
+          this.stats.actionCount++;
+        }
+        return false; // Don't stop execution
+      };
+
+      const newResponseId = await this.engine.runFullTurn(response, trackAction, context);
       this.session.updateResponseId(newResponseId);
 
       // ── Check assertion result ──
@@ -173,6 +237,7 @@ export class ExecutionMode {
 
           // In headless mode, exit immediately on assertion failure
           if (this.isHeadlessMode) {
+            this.stats.assertionsFailed++;
             return { success: false, error: `Assertion failed: ${assertionPrompt}` };
           }
 
@@ -193,15 +258,19 @@ export class ExecutionMode {
 
           if (choice === 'retry' || choice === 'r') {
             // Retry the same instruction by recursing
+            this.stats.retryCount++;
             return await this.executeInstruction(instruction, context);
           } else if (choice === 'skip' || choice === 's') {
             // Continue to next instruction
+            this.stats.assertionsFailed++;
             addOutput({ type: 'info', text: 'Skipping failed assertion and continuing...' });
           } else {
             // Stop execution
+            this.stats.assertionsFailed++;
             return { success: false, error: `Assertion failed: ${assertionPrompt}` };
           }
         } else if (result.passed) {
+          this.stats.assertionsPassed++;
           handleAssertionSuccess(assertionPrompt, context);
         }
       }
@@ -254,6 +323,9 @@ export class ExecutionMode {
       }
 
       addOutput({ type: 'info', text: `Connection issue. Retrying... (${retryCount + 1}/${MAX_RETRIES})` });
+
+      // Track retry for stats
+      this.stats.retryCount++;
 
       // Build context for retry - include transcript in system message to avoid conversational responses
       const transcriptContext = this.session.getTranscriptText();
