@@ -8,7 +8,7 @@ const PROJECT_FOLDERS_KEY = 'projectFolders';
 
 interface StoredProjectFolder {
   path: string;
-  name?: string;
+  alias?: string;
 }
 
 function normalizeFolderPath(rawPath: string): string {
@@ -46,10 +46,11 @@ async function getStoredFolders(): Promise<StoredProjectFolder[]> {
         return { path: normalizeFolderPath(item) } satisfies StoredProjectFolder;
       }
       if (item && typeof item === 'object' && typeof (item as { path?: unknown }).path === 'string') {
-        const typed = item as { path: string; name?: unknown };
+        const typed = item as { path: string; alias?: unknown; name?: unknown };
+        const aliasValue = typeof typed.alias === 'string' ? typed.alias : typeof typed.name === 'string' ? typed.name : undefined;
         return {
           path: normalizeFolderPath(typed.path),
-          name: typeof typed.name === 'string' ? typed.name.trim() || undefined : undefined
+          alias: typeof aliasValue === 'string' ? aliasValue.trim() || undefined : undefined
         } satisfies StoredProjectFolder;
       }
       return null;
@@ -76,7 +77,8 @@ function toProjectFolder(stored: StoredProjectFolder, exists: boolean): ProjectF
   return {
     id: folderIdForPath(stored.path),
     path: stored.path,
-    name: stored.name || folderNameForPath(stored.path),
+    name: stored.alias || folderNameForPath(stored.path),
+    alias: stored.alias,
     exists,
     warning: exists ? undefined : 'Folder unavailable'
   };
@@ -103,14 +105,10 @@ export async function addProjectFolder(folderPath: string): Promise<ProjectFolde
   return toProjectFolder({ path: normalizedPath }, exists);
 }
 
-export async function renameProjectFolder(folderId: string, name: string): Promise<ProjectFolder> {
-  const nextName = name.trim();
-  if (!nextName) {
-    throw new Error('Folder name is required.');
-  }
-
+export async function setProjectFolderAlias(folderId: string, alias: string): Promise<ProjectFolder> {
+  const nextAlias = alias.trim() || undefined;
   const current = await getStoredFolders();
-  const next = current.map((folder) => (folderIdForPath(folder.path) === folderId ? { ...folder, name: nextName } : folder));
+  const next = current.map((folder) => (folderIdForPath(folder.path) === folderId ? { ...folder, alias: nextAlias } : folder));
   await setStoredFolders(next);
 
   const renamed = next.find((folder) => folderIdForPath(folder.path) === folderId);

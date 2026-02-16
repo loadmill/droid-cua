@@ -16,6 +16,7 @@ interface SidebarProps {
   onAddFolder: () => void;
   onOpenCreateDialog: (folderId: string) => void;
   onRenameFolder: (folderId: string, name: string) => Promise<void>;
+  onOpenFolder: (folderId: string) => Promise<void>;
   onRemoveFolder: (folderId: string) => Promise<void>;
   onSelectTest: (ref: TestRef, isRunning: boolean) => void;
   onRightClickTest: (event: MouseEvent<HTMLButtonElement>, ref: TestRef) => void;
@@ -33,6 +34,7 @@ export function Sidebar({
   onAddFolder,
   onOpenCreateDialog,
   onRenameFolder,
+  onOpenFolder,
   onRemoveFolder,
   onSelectTest,
   onRightClickTest
@@ -73,6 +75,7 @@ export function Sidebar({
         onAddFolder={onAddFolder}
         onOpenCreate={onOpenCreateDialog}
         onRenameFolder={onRenameFolder}
+        onOpenFolder={onOpenFolder}
         onRemoveFolder={onRemoveFolder}
         onSelectTest={onSelectTest}
         onRightClickTest={onRightClickTest}

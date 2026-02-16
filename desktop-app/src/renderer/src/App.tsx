@@ -36,6 +36,9 @@ export function App() {
             onRenameFolder={async (folderId, name) => {
               await actions.handleRenameProjectFolder(folderId, name);
             }}
+            onOpenFolder={async (folderId) => {
+              await actions.handleOpenProjectFolder(folderId);
+            }}
             onRemoveFolder={async (folderId) => {
               await actions.handleRemoveProjectFolder(folderId);
             }}

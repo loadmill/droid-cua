@@ -8,7 +8,8 @@ const api: DesktopApi = {
   projects: {
     list: () => ipcRenderer.invoke('projects:list'),
     add: () => ipcRenderer.invoke('projects:add'),
-    rename: (payload) => ipcRenderer.invoke('projects:rename', payload),
+    setAlias: (payload) => ipcRenderer.invoke('projects:setAlias', payload),
+    open: (payload) => ipcRenderer.invoke('projects:open', payload),
     remove: (payload) => ipcRenderer.invoke('projects:remove', payload)
   },
   tests: {

@@ -36,6 +36,7 @@ export interface ProjectFolder {
   id: string;
   path: string;
   name: string;
+  alias?: string;
   exists: boolean;
   warning?: string;
 }
@@ -104,7 +105,8 @@ export interface DesktopApi {
   projects: {
     list: () => Promise<ProjectFolder[]>;
     add: () => Promise<ProjectFolder | null>;
-    rename: (payload: { folderId: string; name: string }) => Promise<ProjectFolder>;
+    setAlias: (payload: { folderId: string; alias: string }) => Promise<ProjectFolder>;
+    open: (payload: { folderId: string }) => Promise<void>;
     remove: (payload: { folderId: string }) => Promise<void>;
   };
   tests: {

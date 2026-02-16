@@ -165,7 +165,7 @@ export function useAppController() {
   }
 
   async function handleRenameProjectFolder(folderId: string, name: string): Promise<void> {
-    await window.desktopApi.projects.rename({ folderId, name });
+    await window.desktopApi.projects.setAlias({ folderId, alias: name });
     await refreshProjectsAndTests();
   }
 
@@ -185,6 +185,10 @@ export function useAppController() {
 
     await window.desktopApi.projects.remove({ folderId });
     await refreshProjectsAndTests();
+  }
+
+  async function handleOpenProjectFolder(folderId: string): Promise<void> {
+    await window.desktopApi.projects.open({ folderId });
   }
 
   async function handleCreateTest(): Promise<void> {
@@ -427,6 +431,7 @@ export function useAppController() {
     handleAddProjectFolder,
     handleRenameProjectFolder,
     handleRemoveProjectFolder,
+    handleOpenProjectFolder,
     handleCreateTest,
     handleSave,
     handleDelete,

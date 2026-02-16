@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { MouseEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Ellipsis, Folder, FolderPlus, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Ellipsis, Folder, FolderOpen, FolderPlus, Pencil, SquarePen, X } from 'lucide-react';
 import type { ProjectFolder, ProjectTestFile } from '../../../../preload/types';
 import type { TestRef } from '../../app/types';
 import { DialogForm } from '../dialogs/DialogForm';
@@ -16,6 +16,7 @@ interface ProjectTreeProps {
   onAddFolder: () => void;
   onOpenCreate: (folderId: string) => void;
   onRenameFolder: (folderId: string, name: string) => Promise<void>;
+  onOpenFolder: (folderId: string) => Promise<void>;
   onRemoveFolder: (folderId: string) => Promise<void>;
   onSelectTest: (ref: TestRef, isRunning: boolean) => void;
   onRightClickTest: (event: MouseEvent<HTMLButtonElement>, ref: TestRef) => void;
@@ -41,11 +42,13 @@ export function ProjectTree({
   onAddFolder,
   onOpenCreate,
   onRenameFolder,
+  onOpenFolder,
   onRemoveFolder,
   onSelectTest,
   onRightClickTest
 }: ProjectTreeProps) {
   const [folderMenu, setFolderMenu] = useState<FolderMenuState | null>(null);
+  const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(new Set());
   const [renameFolderId, setRenameFolderId] = useState<string | null>(null);
   const [renameFolderValue, setRenameFolderValue] = useState('');
   const [renameFolderError, setRenameFolderError] = useState<string | null>(null);
@@ -62,6 +65,31 @@ export function ProjectTree({
     } catch (error) {
       setRenameFolderError(error instanceof Error ? error.message : 'Failed to rename folder.');
     }
+  }
+
+  function openFolderMenuAt(event: MouseEvent<HTMLButtonElement>, folderId: string): void {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 168;
+    const menuHeight = 104;
+    const x = Math.min(Math.max(8, rect.right - menuWidth), window.innerWidth - menuWidth - 8);
+    const y = Math.min(Math.max(8, rect.bottom + 4), window.innerHeight - menuHeight - 8);
+    setFolderMenu({ folderId, x, y });
+  }
+
+  function isCollapsed(folderId: string): boolean {
+    return collapsedFolderIds.has(folderId);
+  }
+
+  function toggleFolder(folderId: string): void {
+    setCollapsedFolderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
   }
 
   return (
@@ -84,13 +112,24 @@ export function ProjectTree({
         <div className="space-y-1">
           {folders.map((folder) => {
             const tests = testsByFolder[folder.id] ?? [];
+            const collapsed = isCollapsed(folder.id);
             return (
               <div key={folder.id} className="space-y-0.5">
                 <div className="group flex items-center gap-2 rounded-md px-2 py-1 text-[12px] text-slate-800 hover:bg-white/35">
                   <div className="grid min-w-0 grid-cols-[14px_1fr] items-center gap-2">
-                    <span className="flex h-[14px] w-[14px] items-center justify-start">
-                      <Folder size={14} className="text-slate-600" strokeWidth={2.2} />
-                    </span>
+                    <button
+                      type="button"
+                      className="flex h-[14px] w-[14px] items-center justify-start text-slate-600 hover:text-slate-900"
+                      aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${folder.name}`}
+                      onClick={() => toggleFolder(folder.id)}
+                    >
+                      <span className="group-hover:hidden">
+                        {collapsed ? <Folder size={14} strokeWidth={2.2} /> : <FolderOpen size={14} strokeWidth={2.2} />}
+                      </span>
+                      <span className="hidden group-hover:block">
+                        {collapsed ? <ChevronRight size={12} strokeWidth={2.4} /> : <ChevronDown size={12} strokeWidth={2.4} />}
+                      </span>
+                    </button>
                     <span className="truncate">{folder.name}</span>
                   </div>
 
@@ -102,42 +141,36 @@ export function ProjectTree({
                         type="button"
                         className="p-1 text-slate-600 hover:text-slate-900"
                         aria-label={`Open ${folder.name} menu`}
-                        onClick={(event) => {
-                          const rect = event.currentTarget.getBoundingClientRect();
-                          setFolderMenu({ folderId: folder.id, x: rect.right - 168, y: rect.bottom + 4 });
-                        }}
+                        onClick={(event) => openFolderMenuAt(event, folder.id)}
                       >
                         <Ellipsis size={14} strokeWidth={2.2} />
                       </button>
-                      <button
-                        type="button"
-                        className="p-1 text-slate-600 hover:text-slate-900"
-                        onClick={() => onOpenCreate(folder.id)}
-                        title={`Create test in ${folder.name}`}
-                      >
-                        <Plus size={14} strokeWidth={2.2} />
+                      <button type="button" className="p-1 text-slate-600 hover:text-slate-900" onClick={() => onOpenCreate(folder.id)} title={`Create test in ${folder.name}`}>
+                        <SquarePen size={14} strokeWidth={2.2} />
                       </button>
                     </div>
                   ) : null}
                 </div>
 
-                {tests.map((test) => {
-                  const ref = { folderId: folder.id, testName: test.filename };
-                  const isRunning = Boolean(activeRunId && sameRef(runningTestRef, ref));
-                  return (
-                    <TestRow
-                      key={`${folder.id}:${test.filename}`}
-                      name={test.name}
-                      refId={ref}
-                      isActive={sameRef(selectedTestRef, ref)}
-                      isRunning={isRunning}
-                      onSelect={onSelectTest}
-                      onRightClick={onRightClickTest}
-                    />
-                  );
-                })}
+                {!collapsed
+                  ? tests.map((test) => {
+                      const ref = { folderId: folder.id, testName: test.filename };
+                      const isRunning = Boolean(activeRunId && sameRef(runningTestRef, ref));
+                      return (
+                        <TestRow
+                          key={`${folder.id}:${test.filename}`}
+                          name={test.name}
+                          refId={ref}
+                          isActive={sameRef(selectedTestRef, ref)}
+                          isRunning={isRunning}
+                          onSelect={onSelectTest}
+                          onRightClick={onRightClickTest}
+                        />
+                      );
+                    })
+                  : null}
 
-                {!folder.warning && tests.length === 0 ? <div className="px-2 py-1 text-[11px] text-slate-500">No .dcua files in this folder.</div> : null}
+                {!folder.warning && tests.length === 0 && !collapsed ? <div className="px-2 py-1 text-[11px] text-slate-500">No .dcua files in this folder.</div> : null}
               </div>
             );
           })}
@@ -145,12 +178,26 @@ export function ProjectTree({
       </div>
 
       {folderMenu ? (
-        <div className="fixed inset-0 z-[85]" onMouseDown={() => setFolderMenu(null)} onContextMenu={(event) => event.preventDefault()}>
+        <div className="no-drag fixed inset-0 z-[85]" onMouseDown={() => setFolderMenu(null)} onContextMenu={(event) => event.preventDefault()}>
           <div
-            className="fixed min-w-[168px] rounded-[10px] border border-[#b7b7b7] bg-[#f1f1f1] p-1 shadow-[0_4px_10px_rgba(0,0,0,0.10)]"
+            className="no-drag fixed min-w-[168px] rounded-[10px] border border-[#b7b7b7] bg-[#f1f1f1] p-1 shadow-[0_4px_10px_rgba(0,0,0,0.10)]"
             style={{ left: folderMenu.x, top: folderMenu.y }}
             onMouseDown={(event) => event.stopPropagation()}
           >
+            <button
+              type="button"
+              className="block w-full rounded-[7px] px-2.5 py-1.5 text-left text-[12px] font-normal leading-[1.2] text-[#2c2c2c] hover:bg-[#e7e7e7]"
+              onClick={() => {
+                const folderId = folderMenu.folderId;
+                setFolderMenu(null);
+                void onOpenFolder(folderId);
+              }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <FolderOpen size={13} strokeWidth={2.1} />
+                <span>Open</span>
+              </span>
+            </button>
             <button
               type="button"
               className="block w-full rounded-[7px] px-2.5 py-1.5 text-left text-[12px] font-normal leading-[1.2] text-[#2c2c2c] hover:bg-[#e7e7e7]"
@@ -163,9 +210,11 @@ export function ProjectTree({
                 setFolderMenu(null);
               }}
             >
-              Edit name
+              <span className="inline-flex items-center gap-2">
+                <Pencil size={13} strokeWidth={2.1} />
+                <span>Edit name</span>
+              </span>
             </button>
-            <div className="mx-2 my-0.5 border-t border-[#cccccc]" />
             <button
               type="button"
               className="block w-full rounded-[7px] px-2.5 py-1.5 text-left text-[12px] font-normal leading-[1.2] text-[#2c2c2c] hover:bg-[#e7e7e7]"
@@ -175,7 +224,10 @@ export function ProjectTree({
                 void onRemoveFolder(folderId);
               }}
             >
-              Remove
+              <span className="inline-flex items-center gap-2">
+                <X size={13} strokeWidth={2.1} />
+                <span>Remove</span>
+              </span>
             </button>
           </div>
         </div>

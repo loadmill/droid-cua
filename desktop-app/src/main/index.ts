@@ -1,15 +1,18 @@
 import path from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import dotenv from 'dotenv';
 import type { LogEvent } from '../preload/types';
 import { connectDevice, getConnectionState, refreshDevices } from './services/device-service';
 import { startExecution, stopExecution } from './services/execution-service';
-import { addProjectFolder, getProjectFolderById, listProjectFolders, removeProjectFolder, renameProjectFolder } from './services/project-folders-service';
+import { addProjectFolder, getProjectFolderById, listProjectFolders, removeProjectFolder, setProjectFolderAlias } from './services/project-folders-service';
 import { getSettings, setSettings } from './services/settings-service';
 import { applyRevisionToContent, createTest, deleteTest, listTests, readTest, renameTest, saveTest } from './services/test-service';
 import { getWorkspaceInfo } from './services/workspace';
 
 let mainWindow: BrowserWindow | null = null;
+const execFileAsync = promisify(execFile);
 
 function sendEvent(channel: 'events:executionLog' | 'events:deviceLog', event: LogEvent): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
@@ -64,7 +67,27 @@ function setupHandlers(): void {
     return await addProjectFolder(response.filePaths[0]);
   });
   ipcMain.handle('projects:remove', async (_event, payload: { folderId: string }) => removeProjectFolder(payload.folderId));
-  ipcMain.handle('projects:rename', async (_event, payload: { folderId: string; name: string }) => renameProjectFolder(payload.folderId, payload.name));
+  ipcMain.handle('projects:setAlias', async (_event, payload: { folderId: string; alias: string }) => setProjectFolderAlias(payload.folderId, payload.alias));
+  ipcMain.handle('projects:open', async (_event, payload: { folderId: string }) => {
+    const folder = await getProjectFolderById(payload.folderId);
+    if (!folder) {
+      throw new Error('Project folder not found.');
+    }
+
+    if (!folder.exists) {
+      throw new Error('Project folder is unavailable.');
+    }
+
+    if (process.platform === 'darwin') {
+      await execFileAsync('open', [folder.path]);
+      return;
+    }
+
+    const openError = await shell.openPath(folder.path);
+    if (openError) {
+      throw new Error(openError);
+    }
+  });
 
   ipcMain.handle('tests:list', async (_event, payload: { folderId: string }) => {
     const folder = await getProjectFolderById(payload.folderId);
