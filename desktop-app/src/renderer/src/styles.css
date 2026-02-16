@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  font-family: 'SF Pro Text', 'Inter Tight', 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag,
+.no-drag * {
+  -webkit-app-region: no-drag;
+}
+
+.app-shell {
+  box-shadow: none;
+}
+
+.rail {
+  position: relative;
+}
+
+.rail::before {
+  content: '';
+  position: absolute;
+  top: 44px;
+  left: 0;
+  right: 0;
+  height: 62px;
+  background: linear-gradient(180deg, rgba(28, 36, 56, 0) 0%, rgba(28, 36, 56, 0.045) 28%, rgba(28, 36, 56, 0.02) 56%, rgba(28, 36, 56, 0) 100%);
+  pointer-events: none;
+}
