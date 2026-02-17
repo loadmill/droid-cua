@@ -33,7 +33,7 @@ export function RenameTestDialog({
             >
               <X size={18} />
             </button>
-            <Dialog.Title className="text-[20px] font-semibold leading-none">Rename test</Dialog.Title>
+            <Dialog.Title className="text-[20px] font-semibold leading-none">Rename test file</Dialog.Title>
             <Dialog.Description className="mt-2 text-[13px] text-slate-500">Keep it short and recognizable.</Dialog.Description>
             <input
               autoFocus
