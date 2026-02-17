@@ -97,7 +97,7 @@ export class ExecutionEngine {
         if (action.type === "screenshot") {
           addOutput({
             type: 'info',
-            text: '📸 Capturing screen',
+            text: 'Capturing screen',
             eventType: 'screenshot_captured',
             actionType: 'screenshot',
             ...eventMeta({

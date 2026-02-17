@@ -32,6 +32,7 @@ export class ExecutionMode {
     this.stats = {
       startTime: null,
       actionCount: 0,
+      instructionsCompleted: 0,
       retryCount: 0,
       assertionsPassed: 0,
       assertionsFailed: 0,
@@ -131,6 +132,7 @@ export class ExecutionMode {
 
       // Check for exit command
       if (instruction.toLowerCase() === "exit") {
+        this.stats.instructionsCompleted++;
         this.emit(addOutput, 'success', 'Test completed.', runContext, stepContext, {
           eventType: 'system_message'
         });
@@ -142,6 +144,7 @@ export class ExecutionMode {
         if (!result.success) {
           return result; // Propagate failure
         }
+        this.stats.instructionsCompleted++;
       } catch (err) {
         // Log full error details to file
         logger.error('Execution mode error', {
@@ -210,7 +213,8 @@ export class ExecutionMode {
       const result = await executeLoadmillInstruction(
         loadmillCommand,
         this.isHeadlessMode,
-        context
+        context,
+        stepContext
       );
 
       // Handle retry request from interactive mode
@@ -298,7 +302,10 @@ export class ExecutionMode {
 
           // Interactive mode - ask user what to do
           this.emit(addOutput, 'system', 'What would you like to do? (retry/skip/stop)', context, stepContext, {
-            eventType: 'system_message'
+            eventType: 'input_request',
+            payload: {
+              options: ['retry', 'skip', 'stop']
+            }
           });
 
           // Wait for user input

@@ -99,7 +99,14 @@ export function App() {
         ) : null}
 
         {derived.pane === 'execution' ? (
-          <ExecutionPane executionLogs={derived.executionLogs} isRunning={derived.isRunning} isStopping={state.isStopping} onStop={actions.handleStop} />
+          <ExecutionPane
+            executionLogs={derived.executionLogs}
+            pendingExecutionInputRequest={state.pendingExecutionInputRequest}
+            isRunning={derived.isRunning}
+            isStopping={state.isStopping}
+            onStop={actions.handleStop}
+            onExecutionResponse={actions.handleExecutionResponse}
+          />
         ) : null}
 
         {derived.pane === 'settings' ? <SettingsPane workspacePath={state.workspace?.rootPath} /> : null}

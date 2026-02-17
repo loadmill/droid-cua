@@ -28,7 +28,8 @@ const api: DesktopApi = {
   },
   execution: {
     start: (payload) => ipcRenderer.invoke('execution:start', payload),
-    stop: (payload) => ipcRenderer.invoke('execution:stop', payload)
+    stop: (payload) => ipcRenderer.invoke('execution:stop', payload),
+    respond: (payload) => ipcRenderer.invoke('execution:respond', payload)
   },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),

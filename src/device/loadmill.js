@@ -42,24 +42,37 @@ export function extractLoadmillCommand(userInput) {
  * @param {string} command - The Loadmill command to execute
  * @param {boolean} isHeadlessMode - Whether running in headless/CI mode
  * @param {Object} context - Execution context
+ * @param {Object|null} stepContext - Optional step context metadata
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export async function executeLoadmillInstruction(command, isHeadlessMode, context) {
+export async function executeLoadmillInstruction(command, isHeadlessMode, context, stepContext = null) {
   const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
+  const meta = {
+    runId: context?.runId,
+    stepId: stepContext?.stepId,
+    instructionIndex: stepContext?.instructionIndex
+  };
 
-  addOutput({ type: 'info', text: `[Loadmill] Executing: ${command}` });
+  addOutput({
+    type: 'info',
+    text: `[Loadmill] Executing: ${command}`,
+    eventType: 'system_message',
+    payload: { loadmillCommand: command },
+    ...meta
+  });
 
   const result = await executeLoadmillCommand(command, {
-    onProgress: ({ message }) => {
-      addOutput({ type: 'info', text: `[Loadmill] ${message}` });
+    onProgress: ({ message, runId }) => {
+      const payload = runId ? { loadmillSuiteRunId: runId, loadmillCommand: command } : { loadmillCommand: command };
+      addOutput({ type: 'info', text: `[Loadmill] ${message}`, eventType: 'system_message', payload, ...meta });
     }
   });
 
   if (result.success) {
-    handleLoadmillSuccess(command, result, context);
+    handleLoadmillSuccess(command, result, context, stepContext);
     return { success: true };
   } else {
-    return await handleLoadmillFailure(command, result.error, isHeadlessMode, context);
+    return await handleLoadmillFailure(command, result.error, isHeadlessMode, context, stepContext, result.runId);
   }
 }
 
@@ -69,14 +82,22 @@ export async function executeLoadmillInstruction(command, isHeadlessMode, contex
  * @param {string} error - Error message
  * @param {boolean} isHeadlessMode - Whether running in headless/CI mode
  * @param {Object} context - Execution context
+ * @param {Object|null} stepContext - Optional step context metadata
  * @returns {Promise<{success: boolean, error?: string}>}
  */
-export async function handleLoadmillFailure(command, error, isHeadlessMode, context) {
+export async function handleLoadmillFailure(command, error, isHeadlessMode, context, stepContext = null, suiteRunId = null) {
   const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
+  const meta = {
+    runId: context?.runId,
+    stepId: stepContext?.stepId,
+    instructionIndex: stepContext?.instructionIndex
+  };
 
-  addOutput({ type: 'error', text: '[Loadmill] FAILED' });
-  addOutput({ type: 'error', text: `Command: ${command}` });
-  addOutput({ type: 'error', text: `Error: ${error}` });
+  const payload = suiteRunId ? { loadmillSuiteRunId: suiteRunId, loadmillCommand: command } : { loadmillCommand: command };
+
+  addOutput({ type: 'error', text: '[Loadmill] FAILED', eventType: 'error', payload, ...meta });
+  addOutput({ type: 'error', text: `Command: ${command}`, eventType: 'error', payload, ...meta });
+  addOutput({ type: 'error', text: `Error: ${error}`, eventType: 'error', payload, ...meta });
 
   if (isHeadlessMode) {
     // Headless mode: exit with error code
@@ -87,7 +108,13 @@ export async function handleLoadmillFailure(command, error, isHeadlessMode, cont
   }
 
   // Interactive mode: ask user what to do
-  addOutput({ type: 'system', text: 'What would you like to do? (retry/skip/stop)' });
+  addOutput({
+    type: 'system',
+    text: 'What would you like to do? (retry/skip/stop)',
+    eventType: 'input_request',
+    payload: { options: ['retry', 'skip', 'stop'], ...payload },
+    ...meta
+  });
 
   const userChoice = await new Promise((resolve) => {
     if (context?.waitForUserInput) {
@@ -104,7 +131,13 @@ export async function handleLoadmillFailure(command, error, isHeadlessMode, cont
     // Retry by returning a signal to re-execute
     return { success: false, retry: true };
   } else if (choice === 'skip' || choice === 's') {
-    addOutput({ type: 'info', text: 'Skipping failed Loadmill command and continuing...' });
+    addOutput({
+      type: 'info',
+      text: 'Skipping failed Loadmill command and continuing...',
+      eventType: 'system_message',
+      payload,
+      ...meta
+    });
     return { success: true }; // Continue to next instruction
   } else {
     // Stop execution
@@ -117,20 +150,28 @@ export async function handleLoadmillFailure(command, error, isHeadlessMode, cont
  * @param {string} command - The executed command
  * @param {Object} result - The execution result
  * @param {Object} context - Execution context
+ * @param {Object|null} stepContext - Optional step context metadata
  */
-export function handleLoadmillSuccess(command, result, context) {
+export function handleLoadmillSuccess(command, result, context, stepContext = null) {
   const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
+  const meta = {
+    runId: context?.runId,
+    stepId: stepContext?.stepId,
+    instructionIndex: stepContext?.instructionIndex
+  };
+
+  const payload = result.runId ? { loadmillSuiteRunId: result.runId, loadmillCommand: command } : { loadmillCommand: command };
 
   if (result.action === "search") {
-    addOutput({ type: 'success', text: `[Loadmill] Found ${result.result.flows.length} flow(s)` });
+    addOutput({ type: 'success', text: `[Loadmill] Found ${result.result.flows.length} flow(s)`, eventType: 'system_message', payload, ...meta });
     result.result.flows.forEach((flow, i) => {
       const name = flow.description || flow.name || "Unknown";
-      addOutput({ type: 'info', text: `  ${i + 1}. ${name} (ID: ${flow.id})` });
+      addOutput({ type: 'info', text: `  ${i + 1}. ${name} (ID: ${flow.id})`, eventType: 'system_message', payload, ...meta });
     });
   } else {
-    addOutput({ type: 'success', text: `[Loadmill] Flow "${result.flowName}" passed` });
+    addOutput({ type: 'success', text: `[Loadmill] Flow "${result.flowName}" passed`, eventType: 'system_message', payload, ...meta });
     if (result.runId) {
-      addOutput({ type: 'info', text: `  Run ID: ${result.runId}` });
+      addOutput({ type: 'info', text: `  Run ID: ${result.runId}`, eventType: 'system_message', payload, ...meta });
     }
   }
 }

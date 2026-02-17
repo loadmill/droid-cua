@@ -23,6 +23,7 @@ export type ExecutionEventType =
   | 'screenshot_captured'
   | 'assertion_result'
   | 'retry'
+  | 'input_request'
   | 'run_finished'
   | 'error'
   | 'system_message';
@@ -110,6 +111,10 @@ export interface ExecutionStartResult {
   runId: string;
 }
 
+export interface ExecutionRespondResult {
+  accepted: true;
+}
+
 export interface SaveResult {
   mtime: string;
 }
@@ -156,6 +161,7 @@ export interface DesktopApi {
   execution: {
     start: (payload: { testPath: string; testName: string }) => Promise<ExecutionStartResult>;
     stop: (payload: { runId: string }) => Promise<{ stopped: true }>;
+    respond: (payload: { runId: string; input: string }) => Promise<ExecutionRespondResult>;
   };
   settings: {
     get: () => Promise<Record<string, unknown>>;

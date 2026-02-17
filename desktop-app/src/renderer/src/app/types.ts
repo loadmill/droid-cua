@@ -39,6 +39,7 @@ export interface AppState {
   deviceOptions: DeviceOption[];
   selectedDeviceName: string;
   activeRunId: string | null;
+  pendingExecutionInputRequest: { options: string[] } | null;
   runningTestRef: TestRef | null;
   isStopping: boolean;
   isExecutionView: boolean;

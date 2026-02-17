@@ -5,7 +5,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import dotenv from 'dotenv';
 import type { LogEvent } from '../preload/types';
 import { connectDevice, getConnectionState, refreshDevices } from './services/device-service';
-import { startExecution, stopExecution } from './services/execution-service';
+import { respondExecution, startExecution, stopExecution } from './services/execution-service';
 import { addProjectFolder, getProjectFolderById, listProjectFolders, removeProjectFolder, setProjectFolderAlias } from './services/project-folders-service';
 import { getSettings, setSettings } from './services/settings-service';
 import { applyRevisionToContent, createTest, deleteTest, listTests, readTest, renameTest, saveTest } from './services/test-service';
@@ -40,6 +40,18 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  // Open external links in the system default browser instead of new Electron windows.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url !== mainWindow?.webContents.getURL()) {
+      event.preventDefault();
+      void shell.openExternal(url);
+    }
   });
 
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -150,6 +162,7 @@ function setupHandlers(): void {
     startExecution(payload.testPath, payload.testName, (entry) => sendEvent('events:executionLog', entry))
   );
   ipcMain.handle('execution:stop', async (_event, payload: { runId: string }) => stopExecution(payload.runId));
+  ipcMain.handle('execution:respond', async (_event, payload: { runId: string; input: string }) => respondExecution(payload.runId, payload.input));
 
   ipcMain.handle('settings:get', async () => getSettings());
   ipcMain.handle('settings:set', async (_event, next: Record<string, unknown>) => setSettings(next));

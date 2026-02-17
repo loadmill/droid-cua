@@ -150,10 +150,10 @@ export async function executeLoadmillCommand(userInput, options = {}) {
     }
 
     // Step 5: Poll for completion
-    onProgress({ step: "polling", message: `Test started (ID: ${runId}). Waiting for completion...` });
+    onProgress({ step: "polling", message: `Test started (ID: ${runId}). Waiting for completion...`, runId });
 
     const finalResult = await pollForCompletion(runId, (status) => {
-      onProgress({ step: "polling", message: `Status: ${status.status}...` });
+      onProgress({ step: "polling", message: `Status: ${status.status}...`, runId });
     });
 
     return {

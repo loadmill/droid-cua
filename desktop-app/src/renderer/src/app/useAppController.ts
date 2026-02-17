@@ -42,6 +42,7 @@ export function useAppController() {
   const [deviceOptions, setDeviceOptions] = useState<AppState['deviceOptions']>([]);
   const [selectedDeviceName, setSelectedDeviceName] = useState('');
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [pendingExecutionInputRequest, setPendingExecutionInputRequest] = useState<AppState['pendingExecutionInputRequest']>(null);
   const [runningTestRef, setRunningTestRef] = useState<TestRef | null>(null);
   const [isStopping, setIsStopping] = useState(false);
   const [isExecutionView, setExecutionView] = useState(false);
@@ -92,8 +93,16 @@ export function useAppController() {
 
         if (entry.text.startsWith('Execution finished:')) {
           setActiveRunId(null);
+          setPendingExecutionInputRequest(null);
           setRunningTestRef(null);
           setIsStopping(false);
+        }
+        if (entry.eventType === 'input_request') {
+          const options =
+            Array.isArray(entry.payload?.options) && entry.payload.options.every((x) => typeof x === 'string')
+              ? (entry.payload.options as string[])
+              : ['retry', 'skip', 'stop'];
+          setPendingExecutionInputRequest({ options });
         }
       }),
       window.desktopApi.events.onDeviceLog((entry) => {
@@ -306,6 +315,7 @@ export function useAppController() {
       setExecutionLogsByTest((prev) => ({ ...prev, [runKey]: [] }));
       setExecutionView(true);
       setRunningTestRef(runRef);
+      setPendingExecutionInputRequest(null);
       setIsStopping(false);
       const { runId } = await window.desktopApi.execution.start({
         testPath: selectedTest.path,
@@ -314,6 +324,7 @@ export function useAppController() {
       setActiveRunId(runId);
     } catch (error) {
       setExecutionView(false);
+      setPendingExecutionInputRequest(null);
       setRunningTestRef(null);
       const text = error instanceof Error ? error.message : 'Failed to start execution.';
       if (selectedTestRef) {
@@ -358,6 +369,12 @@ export function useAppController() {
       }
       setIsStopping(false);
     }
+  }
+
+  async function handleExecutionResponse(input: string): Promise<void> {
+    if (!activeRunId) return;
+    await window.desktopApi.execution.respond({ runId: activeRunId, input });
+    setPendingExecutionInputRequest(null);
   }
 
   async function handleApplyRevision(): Promise<void> {
@@ -408,6 +425,7 @@ export function useAppController() {
     deviceOptions,
     selectedDeviceName,
     activeRunId,
+    pendingExecutionInputRequest,
     runningTestRef,
     isStopping,
     isExecutionView,
@@ -441,6 +459,7 @@ export function useAppController() {
     handleConnect,
     handleRun,
     handleStop,
+    handleExecutionResponse,
     handleApplyRevision,
     setWorkspace,
     setProjectFolders,
