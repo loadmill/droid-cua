@@ -61,7 +61,6 @@ export function App() {
             activeRunId={state.activeRunId}
             isStopping={state.isStopping}
             onStop={() => void actions.handleStop()}
-            onOpenCommandMenu={() => actions.setShowCommandMenu(true)}
           />
         }
       >

@@ -95,8 +95,8 @@ export function ProjectTree({
   return (
     <>
       <div className="no-drag mt-1 border-t border-slate-300 pt-2">
-        <div className="mb-2 flex items-center gap-2 px-1">
-          <span className="font-medium">Project</span>
+        <div className="mb-1.5 flex items-center gap-2 px-1">
+          <span className="font-medium">Projects</span>
           <button
             type="button"
             className="ml-auto p-1 text-slate-600 hover:text-slate-900"
@@ -109,13 +109,13 @@ export function ProjectTree({
 
         {folders.length === 0 ? <div className="px-2 py-1 text-[12px] text-slate-500">No project folders configured.</div> : null}
 
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {folders.map((folder) => {
             const tests = testsByFolder[folder.id] ?? [];
             const collapsed = isCollapsed(folder.id);
             return (
-              <div key={folder.id} className="space-y-0.5">
-                <div className="group flex items-center gap-2 rounded-md px-2 py-1 text-[12px] text-slate-800 hover:bg-white/35">
+              <div key={folder.id} className="space-y-[1px]">
+                <div className="group flex items-center gap-2 rounded-md px-2 py-0.5 text-[12px] text-slate-800 hover:bg-white/35">
                   <div className="grid min-w-0 grid-cols-[14px_1fr] items-center gap-2">
                     <button
                       type="button"
@@ -170,7 +170,7 @@ export function ProjectTree({
                     })
                   : null}
 
-                {!folder.warning && tests.length === 0 && !collapsed ? <div className="px-2 py-1 text-[11px] text-slate-500">No .dcua files in this folder.</div> : null}
+                {!folder.warning && tests.length === 0 && !collapsed ? <div className="px-2 py-0.5 text-[11px] text-slate-500">No .dcua files in this folder.</div> : null}
               </div>
             );
           })}

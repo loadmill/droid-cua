@@ -11,7 +11,6 @@ interface MainHeaderProps {
   activeRunId: string | null;
   isStopping: boolean;
   onStop: () => void;
-  onOpenCommandMenu: () => void;
 }
 
 export function MainHeader({
@@ -21,25 +20,25 @@ export function MainHeader({
   connection,
   activeRunId,
   isStopping,
-  onStop,
-  onOpenCommandMenu
+  onStop
 }: MainHeaderProps) {
   const title =
     pane === 'devices'
       ? 'Device Setup'
       : pane === 'execution'
         ? `Execution: ${selectedTest?.name ?? 'test'}`
-        : pane === 'editor'
-          ? `Test Code: ${selectedTest?.name ?? ''}`
-          : pane === 'settings'
-            ? 'Settings'
-            : 'Design Mode';
+      : pane === 'editor'
+        ? `${selectedTest?.name ?? ''}`
+      : pane === 'settings'
+        ? 'Settings'
+        : 'Design Mode';
+  const showWorkspaceSuffix = pane !== 'devices';
 
   return (
     <header className="drag-region flex items-center justify-between border-b border-line px-4 py-2">
       <div className="no-drag min-w-0 truncate text-[15px] font-semibold leading-none">
         <span className="truncate">{title}</span>
-        <span className="ml-2 truncate text-[13px] font-medium text-slate-500">{workspace?.workspaceName ?? 'Loading workspace...'}</span>
+        {showWorkspaceSuffix ? <span className="ml-2 truncate text-[13px] font-medium text-slate-500">{workspace?.workspaceName ?? 'Loading workspace...'}</span> : null}
       </div>
 
       <div className="no-drag flex items-center gap-2">
@@ -58,9 +57,6 @@ export function MainHeader({
             {isStopping ? 'Stopping...' : 'Stop'}
           </button>
         ) : null}
-        <button type="button" onClick={onOpenCommandMenu} className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[10px]">
-          Command Menu
-        </button>
       </div>
     </header>
   );
