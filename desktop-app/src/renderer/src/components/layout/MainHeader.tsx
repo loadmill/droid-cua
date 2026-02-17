@@ -36,9 +36,9 @@ export function MainHeader({
 
   return (
     <header className="drag-region flex items-center justify-between border-b border-line px-4 py-2">
-      <div className="no-drag min-w-0 truncate text-[15px] font-semibold leading-none">
+      <div className="no-drag flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-[15px] font-semibold leading-none">
         <span className="truncate">{title}</span>
-        {showWorkspaceSuffix ? <span className="ml-2 truncate text-[13px] font-medium text-slate-500">{workspace?.workspaceName ?? 'Loading workspace...'}</span> : null}
+        {showWorkspaceSuffix ? <span className="shrink truncate text-[13px] font-medium text-slate-500">{workspace?.workspaceName ?? 'Loading workspace...'}</span> : null}
       </div>
 
       <div className="no-drag flex items-center gap-2">
