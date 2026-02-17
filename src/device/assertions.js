@@ -64,13 +64,24 @@ export function extractFailureDetails(transcript) {
   return parts[1]?.trim() || "Could not confidently validate the assertion.";
 }
 
-export function handleAssertionFailure(assertionPrompt, transcript, isHeadlessMode, context) {
+export function handleAssertionFailure(assertionPrompt, transcript, isHeadlessMode, context, stepContext = null) {
   const details = extractFailureDetails(transcript);
   const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
+  const meta = {
+    eventType: 'assertion_result',
+    runId: context?.runId,
+    stepId: stepContext?.stepId,
+    instructionIndex: stepContext?.instructionIndex,
+    payload: {
+      assertion: assertionPrompt,
+      passed: false,
+      details
+    }
+  };
 
-  addOutput({ type: 'error', text: '❌ ASSERTION FAILED' });
-  addOutput({ type: 'error', text: `Assertion: ${assertionPrompt}` });
-  addOutput({ type: 'error', text: `Details: ${details}` });
+  addOutput({ type: 'error', text: '❌ ASSERTION FAILED', ...meta });
+  addOutput({ type: 'error', text: `Assertion: ${assertionPrompt}`, ...meta });
+  addOutput({ type: 'error', text: `Details: ${details}`, ...meta });
 
   if (isHeadlessMode) {
     // Headless mode: exit with error code
@@ -82,7 +93,18 @@ export function handleAssertionFailure(assertionPrompt, transcript, isHeadlessMo
   // Interactive mode: caller should clear remaining instructions
 }
 
-export function handleAssertionSuccess(assertionPrompt, context = null) {
+export function handleAssertionSuccess(assertionPrompt, context = null, stepContext = null) {
   const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
-  addOutput({ type: 'success', text: `✓ Assertion passed: ${assertionPrompt}` });
+  addOutput({
+    type: 'success',
+    text: `✓ Assertion passed: ${assertionPrompt}`,
+    eventType: 'assertion_result',
+    runId: context?.runId,
+    stepId: stepContext?.stepId,
+    instructionIndex: stepContext?.instructionIndex,
+    payload: {
+      assertion: assertionPrompt,
+      passed: true
+    }
+  });
 }

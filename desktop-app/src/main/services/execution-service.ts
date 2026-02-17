@@ -13,8 +13,19 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function emit(onLog: (event: LogEvent) => void, kind: LogEvent['kind'], text: string): void {
-  onLog({ ts: nowIso(), kind, text });
+type ExecutionOutputItem = {
+  type?: string;
+  text?: string;
+  eventType?: LogEvent['eventType'];
+  actionType?: LogEvent['actionType'];
+  runId?: string;
+  stepId?: string;
+  instructionIndex?: number;
+  payload?: Record<string, unknown>;
+};
+
+function emit(onLog: (event: LogEvent) => void, kind: LogEvent['kind'], text: string, extra: Partial<LogEvent> = {}): void {
+  onLog({ ts: nowIso(), kind, text, ...extra });
 }
 
 export async function startExecution(testPath: string, testName: string, onLog: (event: LogEvent) => void): Promise<{ runId: string }> {
@@ -42,7 +53,7 @@ export async function startExecution(testPath: string, testName: string, onLog: 
   const [{ Session }, { ExecutionEngine }, { ExecutionMode }, { buildExecutionModePrompt }, { logger }] = await Promise.all([
     importWorkspaceModule<{ Session: new (deviceId: string, deviceInfo: unknown) => { deviceInfo: unknown; setSystemPrompt: (prompt: string) => void; deviceName?: string | null } }>('src/core/session.js'),
     importWorkspaceModule<{ ExecutionEngine: new (session: unknown, options?: { recordScreenshots?: boolean }) => unknown }>('src/core/execution-engine.js'),
-    importWorkspaceModule<{ ExecutionMode: new (session: unknown, engine: unknown, instructions: string[], isHeadlessMode?: boolean) => { execute: (context?: { addOutput?: (item: { type?: string; text?: string }) => void }) => Promise<unknown>; shouldStop: boolean } }>('src/modes/execution-mode.js'),
+    importWorkspaceModule<{ ExecutionMode: new (session: unknown, engine: unknown, instructions: string[], isHeadlessMode?: boolean) => { execute: (context?: { runId?: string; addOutput?: (item: ExecutionOutputItem) => void }) => Promise<{ success?: boolean } | undefined>; shouldStop: boolean; stats?: { startTime?: number; actionCount?: number; retryCount?: number; assertionsPassed?: number; assertionsFailed?: number } } }>('src/modes/execution-mode.js'),
     importWorkspaceModule<{ buildExecutionModePrompt: (deviceInfo: unknown) => string }>('src/core/prompts.js'),
     importWorkspaceModule<{ logger: { init: (debug: boolean) => Promise<void> } }>('src/utils/logger.js')
   ]);
@@ -65,13 +76,23 @@ export async function startExecution(testPath: string, testName: string, onLog: 
   const mode = new ExecutionMode(session, engine, instructions, false);
   activeRun = { runId, mode };
 
-  emit(onLog, 'system', `Running ${filename}...`);
+  emit(onLog, 'system', `Running ${filename}...`, {
+    eventType: 'run_started',
+    runId,
+    payload: {
+      testName: filename,
+      platform: connection.platform,
+      deviceName: connection.deviceName
+    }
+  });
 
+  let runSuccess = false;
   void mode
     .execute({
-      addOutput: (item: { type?: string; text?: string }) => {
+      runId,
+      addOutput: (item: ExecutionOutputItem) => {
         const text = item?.text ?? '';
-        if (!text) return;
+        if (!text && !item.eventType) return;
 
         const type = item.type ?? 'info';
         const kind: LogEvent['kind'] =
@@ -88,14 +109,42 @@ export async function startExecution(testPath: string, testName: string, onLog: 
             ? type
             : 'info';
 
-        emit(onLog, kind, text);
+        emit(onLog, kind, text, {
+          eventType: item.eventType,
+          actionType: item.actionType,
+          runId: item.runId ?? runId,
+          stepId: item.stepId,
+          instructionIndex: item.instructionIndex,
+          payload: item.payload
+        });
       }
     })
+    .then((result: { success?: boolean } | undefined) => {
+      runSuccess = Boolean(result?.success);
+    })
     .catch((error: Error) => {
-      emit(onLog, 'error', error.message);
+      emit(onLog, 'error', error.message, {
+        eventType: 'error',
+        runId,
+        payload: { message: error.message }
+      });
     })
     .finally(() => {
-      emit(onLog, 'system', `Execution finished: ${filename}`);
+      const stats = (mode as { stats?: { startTime?: number; actionCount?: number; retryCount?: number; assertionsPassed?: number; assertionsFailed?: number } }).stats;
+      const durationMs = stats?.startTime ? Math.max(0, Date.now() - stats.startTime) : 0;
+      emit(onLog, 'system', `Execution finished: ${filename}`, {
+        eventType: 'run_finished',
+        runId,
+        payload: {
+          success: runSuccess,
+          durationMs,
+          instructionsTotal: instructions.length,
+          actionsTotal: stats?.actionCount ?? 0,
+          assertionsPassed: stats?.assertionsPassed ?? 0,
+          assertionsFailed: stats?.assertionsFailed ?? 0,
+          retries: stats?.retryCount ?? 0
+        }
+      });
       activeRun = { runId: '', mode: null };
     });
 

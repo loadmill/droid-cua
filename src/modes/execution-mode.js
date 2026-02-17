@@ -75,35 +75,70 @@ export class ExecutionMode {
     return lines;
   }
 
+  buildStepContext(instructionIndex) {
+    return {
+      instructionIndex,
+      stepId: `step-${String(instructionIndex + 1).padStart(4, "0")}`,
+    };
+  }
+
+  emit(addOutput, type, text, context = {}, stepContext = null, extra = {}) {
+    addOutput({
+      type,
+      text,
+      eventType: extra.eventType,
+      actionType: extra.actionType,
+      runId: context?.runId,
+      stepId: stepContext?.stepId,
+      instructionIndex: stepContext?.instructionIndex,
+      payload: extra.payload
+    });
+  }
+
   /**
    * Execute all instructions in the test script
    * @param {Object} context - Additional context (Ink context with addOutput)
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   async execute(context = {}) {
-    const addOutput = context.addOutput || ((item) => console.log(item.text || item));
+    const runContext = {
+      ...context,
+      runId: context.runId || `run-${Date.now()}`
+    };
+    const addOutput = runContext.addOutput || ((item) => console.log(item.text || item));
 
     // Start timing
     this.stats.startTime = Date.now();
 
     for (let i = 0; i < this.instructions.length; i++) {
+      const stepContext = this.buildStepContext(i);
       // Check if execution should be stopped
       if (this.shouldStop) {
-        addOutput({ type: 'info', text: 'Test execution stopped by user.' });
+        this.emit(addOutput, 'info', 'Test execution stopped by user.', runContext, stepContext, {
+          eventType: 'system_message'
+        });
         return { success: false, error: 'Stopped by user' };
       }
 
       const instruction = this.instructions[i];
-      addOutput({ type: 'user', text: instruction });
+      this.emit(addOutput, 'user', instruction, runContext, stepContext, {
+        eventType: 'instruction_started',
+        payload: {
+          instruction,
+          isAssertion: isAssertion(instruction)
+        }
+      });
 
       // Check for exit command
       if (instruction.toLowerCase() === "exit") {
-        addOutput({ type: 'success', text: 'Test completed.' });
+        this.emit(addOutput, 'success', 'Test completed.', runContext, stepContext, {
+          eventType: 'system_message'
+        });
         return { success: true };
       }
 
       try {
-        const result = await this.executeInstruction(instruction, context);
+        const result = await this.executeInstruction(instruction, runContext, 0, stepContext);
         if (!result.success) {
           return result; // Propagate failure
         }
@@ -120,14 +155,33 @@ export class ExecutionMode {
         });
 
         // Show user-friendly error message
-        addOutput({ type: 'error', text: `Error executing instruction: ${instruction}` });
-        addOutput({ type: 'error', text: err.message });
-        addOutput({ type: 'info', text: 'Full error details have been logged to the debug log.' });
+        this.emit(addOutput, 'error', `Error executing instruction: ${instruction}`, runContext, stepContext, {
+          eventType: 'error',
+          payload: {
+            instruction,
+            message: err.message,
+            status: err.status,
+            code: err.code
+          }
+        });
+        this.emit(addOutput, 'error', err.message, runContext, stepContext, {
+          eventType: 'error',
+          payload: {
+            message: err.message,
+            status: err.status,
+            code: err.code
+          }
+        });
+        this.emit(addOutput, 'info', 'Full error details have been logged to the debug log.', runContext, stepContext, {
+          eventType: 'system_message'
+        });
         return { success: false, error: err.message };
       }
     }
 
-    addOutput({ type: 'success', text: 'Test completed successfully.' });
+    this.emit(addOutput, 'success', 'Test completed successfully.', runContext, null, {
+      eventType: 'system_message'
+    });
 
     // Display stats
     for (const line of this.formatStats()) {
@@ -144,7 +198,7 @@ export class ExecutionMode {
    * @param {number} retryCount - Current retry attempt (internal use)
    * @returns {Promise<{success: boolean, error?: string}>}
    */
-  async executeInstruction(instruction, context, retryCount = 0) {
+  async executeInstruction(instruction, context, retryCount = 0, stepContext = null) {
     const MAX_RETRIES = 3;
     const addOutput = context.addOutput || ((item) => console.log(item.text || item));
 
@@ -162,7 +216,7 @@ export class ExecutionMode {
       // Handle retry request from interactive mode
       if (result.retry) {
         this.stats.retryCount++;
-        return await this.executeInstruction(instruction, context);
+        return await this.executeInstruction(instruction, context, 0, stepContext);
       }
 
       return result;
@@ -220,7 +274,7 @@ export class ExecutionMode {
         return false; // Don't stop execution
       };
 
-      const newResponseId = await this.engine.runFullTurn(response, trackAction, context);
+      const newResponseId = await this.engine.runFullTurn(response, trackAction, context, stepContext);
       this.session.updateResponseId(newResponseId);
 
       // ── Check assertion result ──
@@ -232,7 +286,8 @@ export class ExecutionMode {
             assertionPrompt,
             this.session.transcript,
             false, // Never exit process - we'll always prompt the user in interactive mode
-            context
+            context,
+            stepContext
           );
 
           // In headless mode, exit immediately on assertion failure
@@ -242,7 +297,9 @@ export class ExecutionMode {
           }
 
           // Interactive mode - ask user what to do
-          addOutput({ type: 'system', text: 'What would you like to do? (retry/skip/stop)' });
+          this.emit(addOutput, 'system', 'What would you like to do? (retry/skip/stop)', context, stepContext, {
+            eventType: 'system_message'
+          });
 
           // Wait for user input
           const userChoice = await new Promise((resolve) => {
@@ -259,11 +316,13 @@ export class ExecutionMode {
           if (choice === 'retry' || choice === 'r') {
             // Retry the same instruction by recursing
             this.stats.retryCount++;
-            return await this.executeInstruction(instruction, context);
+            return await this.executeInstruction(instruction, context, 0, stepContext);
           } else if (choice === 'skip' || choice === 's') {
             // Continue to next instruction
             this.stats.assertionsFailed++;
-            addOutput({ type: 'info', text: 'Skipping failed assertion and continuing...' });
+            this.emit(addOutput, 'info', 'Skipping failed assertion and continuing...', context, stepContext, {
+              eventType: 'system_message'
+            });
           } else {
             // Stop execution
             this.stats.assertionsFailed++;
@@ -271,7 +330,7 @@ export class ExecutionMode {
           }
         } else if (result.passed) {
           this.stats.assertionsPassed++;
-          handleAssertionSuccess(assertionPrompt, context);
+          handleAssertionSuccess(assertionPrompt, context, stepContext);
         }
       }
 
@@ -297,10 +356,19 @@ export class ExecutionMode {
 
       // Check if we've exceeded max retries
       if (retryCount >= MAX_RETRIES) {
-        addOutput({ type: 'error', text: `Failed after ${MAX_RETRIES} retries. Device may be disconnected.` });
+        this.emit(addOutput, 'error', `Failed after ${MAX_RETRIES} retries. Device may be disconnected.`, context, stepContext, {
+          eventType: 'error',
+          payload: {
+            message: `Failed after ${MAX_RETRIES} retries. Device may be disconnected.`,
+            attempt: retryCount,
+            maxRetries: MAX_RETRIES
+          }
+        });
 
         // Attempt to reconnect to the device
-        addOutput({ type: 'info', text: 'Attempting to reconnect to device...' });
+        this.emit(addOutput, 'info', 'Attempting to reconnect to device...', context, stepContext, {
+          eventType: 'system_message'
+        });
         try {
           const platform = getCurrentPlatform();
           const deviceName = this.session.deviceName || undefined;
@@ -311,18 +379,32 @@ export class ExecutionMode {
           this.session.deviceId = deviceId;
           this.session.deviceInfo = deviceInfo;
 
-          addOutput({ type: 'success', text: 'Reconnected to device. Resuming...' });
+          this.emit(addOutput, 'success', 'Reconnected to device. Resuming...', context, stepContext, {
+            eventType: 'system_message'
+          });
 
           // Reset retry count and try again
-          return await this.executeInstruction(instruction, context, 0);
+          return await this.executeInstruction(instruction, context, 0, stepContext);
         } catch (reconnectErr) {
           logger.error('Failed to reconnect to device', { error: reconnectErr.message });
-          addOutput({ type: 'error', text: `Could not reconnect to device: ${reconnectErr.message}` });
+          this.emit(addOutput, 'error', `Could not reconnect to device: ${reconnectErr.message}`, context, stepContext, {
+            eventType: 'error',
+            payload: {
+              message: reconnectErr.message
+            }
+          });
           return { success: false, error: 'Device disconnected and reconnection failed' };
         }
       }
 
-      addOutput({ type: 'info', text: `Connection issue. Retrying... (${retryCount + 1}/${MAX_RETRIES})` });
+      this.emit(addOutput, 'info', `Connection issue. Retrying... (${retryCount + 1}/${MAX_RETRIES})`, context, stepContext, {
+        eventType: 'retry',
+        payload: {
+          attempt: retryCount + 1,
+          maxRetries: MAX_RETRIES,
+          reason: err.message
+        }
+      });
 
       // Track retry for stats
       this.stats.retryCount++;
@@ -347,7 +429,7 @@ export class ExecutionMode {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Retry the same instruction with incremented counter
-      return await this.executeInstruction(instruction, context, retryCount + 1);
+      return await this.executeInstruction(instruction, context, retryCount + 1, stepContext);
     }
   }
 }

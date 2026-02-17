@@ -10,6 +10,17 @@ function adbShell(deviceId, command) {
 
 export async function handleModelAction(deviceId, action, scale = 1.0, context = null) {
   const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
+  const meta = (payload = {}) => ({
+    eventType: 'tool_call',
+    actionType: action?.type,
+    runId: context?.runId,
+    stepId: context?.stepId,
+    instructionIndex: context?.instructionIndex,
+    payload: {
+      platform: 'android',
+      ...payload
+    }
+  });
 
   try {
     const { x, y, x1, y1, x2, y2, text, keys, path } = action;
@@ -18,14 +29,14 @@ export async function handleModelAction(deviceId, action, scale = 1.0, context =
       case "click":
         const realX = Math.round(x / scale);
         const realY = Math.round(y / scale);
-        addOutput({ type: 'action', text: `Clicking at (${realX}, ${realY})` });
+        addOutput({ type: 'action', text: `Clicking at (${realX}, ${realY})`, ...meta({ x: realX, y: realY, unit: 'px' }) });
         await adbShell(deviceId, `input tap ${realX} ${realY}`);
         break;
 
       case "scroll":
         const scrollX = Math.round(action.scroll_x / scale);
         const scrollY = Math.round(action.scroll_y / scale);
-        addOutput({ type: 'action', text: `Scrolling by (${scrollX}, ${scrollY})` });
+        addOutput({ type: 'action', text: `Scrolling by (${scrollX}, ${scrollY})`, ...meta({ scrollX, scrollY, unit: 'px' }) });
         const startX = 500;
         const startY = 500;
         const endX = startX + scrollX;
@@ -42,7 +53,11 @@ export async function handleModelAction(deviceId, action, scale = 1.0, context =
           const realEndX = Math.round(end.x / scale);
           const realEndY = Math.round(end.y / scale);
 
-          addOutput({ type: 'action', text: `Dragging from (${realStartX}, ${realStartY}) to (${realEndX}, ${realEndY})` });
+          addOutput({
+            type: 'action',
+            text: `Dragging from (${realStartX}, ${realStartY}) to (${realEndX}, ${realEndY})`,
+            ...meta({ pathStart: { x: realStartX, y: realStartY }, pathEnd: { x: realEndX, y: realEndY }, unit: 'px' })
+          });
           await adbShell(deviceId, `input swipe ${realStartX} ${realStartY} ${realEndX} ${realEndY} 500`);
         } else {
           addOutput({ type: 'info', text: `Drag action missing valid path: ${JSON.stringify(action)}` });
@@ -50,7 +65,7 @@ export async function handleModelAction(deviceId, action, scale = 1.0, context =
         break;
 
       case "type":
-        addOutput({ type: 'action', text: `Typing text: ${text}` });
+        addOutput({ type: 'action', text: `Typing text: ${text}`, ...meta({ text }) });
         const escapedText = text.replace(/(["\\$`])/g, "\\$1").replace(/ /g, "%s");
         await adbShell(deviceId, `input text "${escapedText}"`);
         break;
@@ -64,14 +79,14 @@ export async function handleModelAction(deviceId, action, scale = 1.0, context =
           return key;
         });
 
-        addOutput({ type: 'action', text: `Pressing key: ${mappedKeys.join(', ')}` });
+        addOutput({ type: 'action', text: `Pressing key: ${mappedKeys.join(', ')}`, ...meta({ keys, mappedKeys }) });
         for (const key of mappedKeys) {
           await adbShell(deviceId, `input keyevent ${key}`);
         }
         break;
 
       case "wait":
-        addOutput({ type: 'action', text: 'Waiting...' });
+        addOutput({ type: 'action', text: 'Waiting...', ...meta({}) });
         await new Promise(res => setTimeout(res, 1000));
         break;
 
@@ -87,7 +102,19 @@ export async function handleModelAction(deviceId, action, scale = 1.0, context =
     });
 
     // Show user-friendly error message
-    addOutput({ type: 'error', text: `Error executing action: ${error.message}` });
+    addOutput({
+      type: 'error',
+      text: `Error executing action: ${error.message}`,
+      eventType: 'error',
+      actionType: action?.type,
+      runId: context?.runId,
+      stepId: context?.stepId,
+      instructionIndex: context?.instructionIndex,
+      payload: {
+        message: error.message,
+        platform: 'android'
+      }
+    });
     addOutput({ type: 'info', text: 'Full error details have been logged to the debug log.' });
   }
 }

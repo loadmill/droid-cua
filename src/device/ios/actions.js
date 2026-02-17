@@ -18,6 +18,17 @@ import { logger } from "../../utils/logger.js";
 export async function handleModelAction(simulatorId, action, scale = 1.0, context = null) {
   const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
   const session = getActiveSession();
+  const meta = (payload = {}) => ({
+    eventType: "tool_call",
+    actionType: action?.type,
+    runId: context?.runId,
+    stepId: context?.stepId,
+    instructionIndex: context?.instructionIndex,
+    payload: {
+      platform: "ios",
+      ...payload
+    }
+  });
 
   if (!session) {
     throw new Error("No active iOS session");
@@ -32,13 +43,13 @@ export async function handleModelAction(simulatorId, action, scale = 1.0, contex
         const pixelY = Math.round(action.y / scale);
         const pointX = Math.round(pixelX / dpr);
         const pointY = Math.round(pixelY / dpr);
-        addOutput({ type: "action", text: `Tapping at (${pointX}, ${pointY}) points` });
+        addOutput({ type: "action", text: `Tapping at (${pointX}, ${pointY}) points`, ...meta({ x: pointX, y: pointY, unit: "points", deviceScale: dpr }) });
         await appium.tap(session.sessionId, pointX, pointY);
         break;
       }
 
       case "type": {
-        addOutput({ type: "action", text: `Typing text: ${action.text}` });
+        addOutput({ type: "action", text: `Typing text: ${action.text}`, ...meta({ text: action.text }) });
         await appium.type(session.sessionId, action.text);
         break;
       }
@@ -47,7 +58,7 @@ export async function handleModelAction(simulatorId, action, scale = 1.0, contex
         const dpr = getDevicePixelRatio();
         const scrollX = Math.round((action.scroll_x / scale) / dpr);
         const scrollY = Math.round((action.scroll_y / scale) / dpr);
-        addOutput({ type: "action", text: `Scrolling by (${scrollX}, ${scrollY}) points` });
+        addOutput({ type: "action", text: `Scrolling by (${scrollX}, ${scrollY}) points`, ...meta({ scrollX, scrollY, unit: "points" }) });
 
         // Start from center of screen (in logical points)
         const centerX = 197; // Center of iPhone 16 (393/2)
@@ -74,6 +85,7 @@ export async function handleModelAction(simulatorId, action, scale = 1.0, contex
           addOutput({
             type: "action",
             text: `Dragging from (${startX}, ${startY}) to (${endX}, ${endY}) points`,
+            ...meta({ pathStart: { x: startX, y: startY }, pathEnd: { x: endX, y: endY }, unit: "points" })
           });
           await appium.drag(session.sessionId, startX, startY, endX, endY);
         } else {
@@ -88,16 +100,16 @@ export async function handleModelAction(simulatorId, action, scale = 1.0, contex
           const upperKey = key.toUpperCase();
           if (upperKey === "ESC" || upperKey === "ESCAPE") {
             // Map ESC to home button on iOS
-            addOutput({ type: "action", text: "Pressing Home button" });
+            addOutput({ type: "action", text: "Pressing Home button", ...meta({ keys: [key], mapped: "home" }) });
             await appium.pressButton(session.sessionId, "home");
           } else if (upperKey === "ENTER" || upperKey === "RETURN") {
-            addOutput({ type: "action", text: "Pressing Return key" });
+            addOutput({ type: "action", text: "Pressing Return key", ...meta({ keys: [key], mapped: "return" }) });
             await appium.type(session.sessionId, "\n");
           } else if (upperKey === "BACKSPACE" || upperKey === "DELETE") {
-            addOutput({ type: "action", text: "Pressing Delete key" });
+            addOutput({ type: "action", text: "Pressing Delete key", ...meta({ keys: [key], mapped: "delete" }) });
             await appium.type(session.sessionId, "\b");
           } else {
-            addOutput({ type: "action", text: `Pressing key: ${key}` });
+            addOutput({ type: "action", text: `Pressing key: ${key}`, ...meta({ keys: [key] }) });
             await appium.type(session.sessionId, key);
           }
         }
@@ -105,7 +117,7 @@ export async function handleModelAction(simulatorId, action, scale = 1.0, contex
       }
 
       case "wait": {
-        addOutput({ type: "action", text: "Waiting..." });
+        addOutput({ type: "action", text: "Waiting...", ...meta({}) });
         await new Promise((resolve) => setTimeout(resolve, 1000));
         break;
       }
@@ -120,7 +132,19 @@ export async function handleModelAction(simulatorId, action, scale = 1.0, contex
       stack: error.stack,
     });
 
-    addOutput({ type: "error", text: `Error executing action: ${error.message}` });
+    addOutput({
+      type: "error",
+      text: `Error executing action: ${error.message}`,
+      eventType: "error",
+      actionType: action?.type,
+      runId: context?.runId,
+      stepId: context?.stepId,
+      instructionIndex: context?.instructionIndex,
+      payload: {
+        message: error.message,
+        platform: "ios"
+      }
+    });
     addOutput({ type: "info", text: "Full error details have been logged to the debug log." });
   }
 }

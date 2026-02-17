@@ -14,6 +14,30 @@ export type LogKind =
   | 'system'
   | 'muted';
 
+export type ExecutionEventType =
+  | 'run_started'
+  | 'instruction_started'
+  | 'reasoning'
+  | 'assistant_message'
+  | 'tool_call'
+  | 'screenshot_captured'
+  | 'assertion_result'
+  | 'retry'
+  | 'run_finished'
+  | 'error'
+  | 'system_message';
+
+export type ExecutionActionType =
+  | 'click'
+  | 'double_click'
+  | 'drag'
+  | 'scroll'
+  | 'type'
+  | 'keypress'
+  | 'wait'
+  | 'screenshot'
+  | 'move';
+
 export interface WorkspaceInfo {
   rootPath: string;
   testsDir: string;
@@ -74,6 +98,12 @@ export interface LogEvent {
   ts: string;
   kind: LogKind;
   text: string;
+  eventType?: ExecutionEventType;
+  actionType?: ExecutionActionType;
+  runId?: string;
+  stepId?: string;
+  instructionIndex?: number;
+  payload?: Record<string, unknown>;
 }
 
 export interface ExecutionStartResult {

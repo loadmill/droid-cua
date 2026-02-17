@@ -2,7 +2,21 @@ import React from 'react';
 import { Box, Text } from 'ink';
 
 /**
+ * @typedef {Object} CliExecutionOutputItem
+ * @property {string} [type]
+ * @property {string} [text]
+ * @property {string} [eventType]
+ * @property {string} [actionType]
+ * @property {string} [runId]
+ * @property {string} [stepId]
+ * @property {number} [instructionIndex]
+ * @property {Record<string, unknown>} [payload]
+ * @property {unknown} [metadata]
+ */
+
+/**
  * Scrollable output panel for agent actions and reasoning
+ * @param {{ items: CliExecutionOutputItem[] }} props
  */
 export function OutputPanel({ items }) {
   if (items.length === 0) {
@@ -22,6 +36,9 @@ export function OutputPanel({ items }) {
   );
 }
 
+/**
+ * @param {{ item: CliExecutionOutputItem }} props
+ */
 function OutputItem({ item }) {
   switch (item.type) {
     case 'reasoning':

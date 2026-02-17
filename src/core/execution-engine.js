@@ -19,9 +19,15 @@ export class ExecutionEngine {
    * @param {Function} trackAction - Optional callback to track actions for stuck detection
    * @param {Object} context - Optional Ink context for output
    */
-  async runFullTurn(response, trackAction = null, context = null) {
+  async runFullTurn(response, trackAction = null, context = null, stepContext = null) {
     const addOutput = context?.addOutput || ((item) => console.log(item.text || item));
     let newResponseId = response.id;
+    const eventMeta = (extra = {}) => ({
+      runId: context?.runId,
+      stepId: stepContext?.stepId,
+      instructionIndex: stepContext?.instructionIndex,
+      ...extra
+    });
 
     while (true) {
       // Check for interruption before processing next batch of actions
@@ -45,18 +51,39 @@ export class ExecutionEngine {
         if (item.type === "reasoning") {
           for (const entry of item.summary) {
             if (entry.type === "summary_text") {
-              addOutput({ type: 'reasoning', text: entry.text });
+              addOutput({
+                type: 'reasoning',
+                text: entry.text,
+                eventType: 'reasoning',
+                ...eventMeta()
+              });
               this.session.addToTranscript(`[Reasoning] ${entry.text}`);
             }
           }
         } else if (item.type === "message") {
           const textPart = item.content.find(c => c.type === "output_text");
           if (textPart) {
-            addOutput({ type: 'assistant', text: textPart.text });
+            addOutput({
+              type: 'assistant',
+              text: textPart.text,
+              eventType: 'assistant_message',
+              ...eventMeta()
+            });
             this.session.addToTranscript(`[Assistant] ${textPart.text}`);
           }
         } else if (item.type === "pending_safety_check") {
-          addOutput({ type: 'warning', text: `⚠️ Safety check: ${item.code} - ${item.message}` });
+          addOutput({
+            type: 'warning',
+            text: `⚠️ Safety check: ${item.code} - ${item.message}`,
+            eventType: 'system_message',
+            ...eventMeta({
+              payload: {
+                id: item.id,
+                code: item.code,
+                message: item.message
+              }
+            })
+          });
         }
       }
 
@@ -68,9 +95,24 @@ export class ExecutionEngine {
       // ── Process model actions ──
       for (const { action, call_id } of actions) {
         if (action.type === "screenshot") {
-          addOutput({ type: 'info', text: '📸 Capturing screen' });
+          addOutput({
+            type: 'info',
+            text: '📸 Capturing screen',
+            eventType: 'screenshot_captured',
+            actionType: 'screenshot',
+            ...eventMeta({
+              payload: {
+                callId: call_id,
+                source: 'explicit_action'
+              }
+            })
+          });
         } else {
-          await handleModelAction(this.session.deviceId, action, this.session.deviceInfo.scale, context);
+          await handleModelAction(this.session.deviceId, action, this.session.deviceInfo.scale, {
+            ...context,
+            stepId: stepContext?.stepId,
+            instructionIndex: stepContext?.instructionIndex
+          });
 
           // Track action and check for interruption
           if (trackAction) {
@@ -123,7 +165,12 @@ export class ExecutionEngine {
     // ── At end, if last output was only reasoning ──
     const finalItems = response.output || [];
     if (finalItems.length > 0 && finalItems.at(-1).type === "reasoning") {
-      addOutput({ type: 'info', text: 'Warning: last item was reasoning without follow-up. Dropping to avoid 400 error.' });
+      addOutput({
+        type: 'info',
+        text: 'Warning: last item was reasoning without follow-up. Dropping to avoid 400 error.',
+        eventType: 'system_message',
+        ...eventMeta()
+      });
     }
 
     return newResponseId;

@@ -9,11 +9,25 @@ import { COMMANDS, getCommandSuggestions } from './command-parser.js';
 import { listTests } from '../test-store/test-manager.js';
 
 /**
+ * @typedef {Object} CliExecutionOutputItem
+ * @property {string} [type]
+ * @property {string} [text]
+ * @property {string} [eventType]
+ * @property {string} [actionType]
+ * @property {string} [runId]
+ * @property {string} [stepId]
+ * @property {number} [instructionIndex]
+ * @property {Record<string, unknown>} [payload]
+ * @property {unknown} [metadata]
+ */
+
+/**
  * Main Ink App component - conversational split-pane UI
  */
 export function App({ session, initialMode = 'command', onInput, onExit }) {
   const [mode, setMode] = useState(initialMode);
   const [testName, setTestName] = useState(null);
+  /** @type {[CliExecutionOutputItem[], React.Dispatch<React.SetStateAction<CliExecutionOutputItem[]>>]} */
   const [output, setOutput] = useState([]);
   const [agentWorking, setAgentWorking] = useState(false);
   const [agentMessage, setAgentMessage] = useState('');
@@ -42,6 +56,7 @@ export function App({ session, initialMode = 'command', onInput, onExit }) {
   // Context object passed to modes and commands
   const context = {
     // Output methods
+    /** @param {CliExecutionOutputItem} item */
     addOutput: (item) => {
       setOutput((prev) => [...prev, item]);
     },
