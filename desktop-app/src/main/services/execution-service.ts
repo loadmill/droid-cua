@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import type { LogEvent } from '../../preload/types';
 import { getConnectionState } from './device-service';
 import { importWorkspaceModule } from './module-loader';
+import { getPromptCustomizations } from './prompt-customizations-service';
 
 let activeRun: { runId: string; mode: { shouldStop: boolean } | null } = {
   runId: '',
@@ -55,9 +56,19 @@ export async function startExecution(testPath: string, testName: string, onLog: 
     importWorkspaceModule<{ Session: new (deviceId: string, deviceInfo: unknown) => { deviceInfo: unknown; setSystemPrompt: (prompt: string) => void; deviceName?: string | null } }>('src/core/session.js'),
     importWorkspaceModule<{ ExecutionEngine: new (session: unknown, options?: { recordScreenshots?: boolean }) => unknown }>('src/core/execution-engine.js'),
     importWorkspaceModule<{ ExecutionMode: new (session: unknown, engine: unknown, instructions: string[], isHeadlessMode?: boolean) => { execute: (context?: { runId?: string; waitForUserInput?: () => Promise<string>; addOutput?: (item: ExecutionOutputItem) => void }) => Promise<{ success?: boolean; error?: string } | undefined>; shouldStop: boolean; stats?: { startTime?: number; actionCount?: number; instructionsCompleted?: number; retryCount?: number; assertionsPassed?: number; assertionsFailed?: number } } }>('src/modes/execution-mode.js'),
-    importWorkspaceModule<{ buildExecutionModePrompt: (deviceInfo: unknown) => string }>('src/core/prompts.js'),
+    importWorkspaceModule<{
+      buildExecutionModePrompt: (
+        deviceInfo: unknown,
+        customInstructions?: {
+          basePromptInstructions?: string;
+          designModeInstructions?: string;
+          executionModeInstructions?: string;
+        }
+      ) => string;
+    }>('src/core/prompts.js'),
     importWorkspaceModule<{ logger: { init: (debug: boolean) => Promise<void> } }>('src/utils/logger.js')
   ]);
+  const promptCustomizations = await getPromptCustomizations();
 
   await logger.init(false);
 
@@ -67,7 +78,7 @@ export async function startExecution(testPath: string, testName: string, onLog: 
 
   (session as { deviceName?: string | null }).deviceName = connection.deviceName;
 
-  const systemPrompt = buildExecutionModePrompt(session.deviceInfo);
+  const systemPrompt = buildExecutionModePrompt(session.deviceInfo, promptCustomizations);
   session.setSystemPrompt(systemPrompt);
 
   const engine = new ExecutionEngine(session, {
@@ -169,6 +180,10 @@ export async function startExecution(testPath: string, testName: string, onLog: 
     });
 
   return { runId };
+}
+
+export function hasActiveExecutionRun(): boolean {
+  return Boolean(activeRun.mode);
 }
 
 export async function stopExecution(runId: string): Promise<{ stopped: true }> {

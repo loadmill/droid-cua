@@ -1,0 +1,5 @@
+Open the maker checker website in chrome http://bank-demo.loadmill.com/
+loadmill: create a transction with amount=200
+login as checker
+assert: transction for 200 is created
+exit

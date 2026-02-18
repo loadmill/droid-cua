@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react';
-import { MonitorSmartphone, Plus, Settings } from 'lucide-react';
+import { MonitorSmartphone, Settings, SquarePen } from 'lucide-react';
 import type { ConnectionState, ProjectFolder, ProjectTestFile } from '../../../../preload/types';
 import type { Section, TestRef } from '../../app/types';
 import { LoadmillMark } from '../brand/LoadmillMark';
@@ -14,6 +14,7 @@ interface SidebarProps {
   activeRunId: string | null;
   runningTestRef: TestRef | null;
   onSectionChange: (section: Section) => void;
+  onNewTest: () => void;
   onAddFolder: () => void;
   onOpenCreateDialog: (folderId: string) => void;
   onRenameFolder: (folderId: string, name: string) => Promise<void>;
@@ -32,6 +33,7 @@ export function Sidebar({
   activeRunId,
   runningTestRef,
   onSectionChange,
+  onNewTest,
   onAddFolder,
   onOpenCreateDialog,
   onRenameFolder,
@@ -50,13 +52,11 @@ export function Sidebar({
       <nav className="no-drag flex flex-col gap-1">
         <button
           type="button"
-          disabled
-          className="flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-3 text-left text-slate-400"
-          title="Coming soon"
+          className={`flex min-h-9 items-center gap-2 rounded-md border px-3 text-left ${section === 'new-test' && !selectedTestRef ? 'border-indigo-200 bg-white shadow-sm' : 'border-transparent hover:bg-white/70'}`}
+          onClick={onNewTest}
         >
-          <Plus size={14} />
-          <span className="font-medium">New Test</span>
-          <span className="ml-auto rounded-full bg-slate-200 px-2 py-0.5 text-[10px]">Coming soon</span>
+          <SquarePen size={14} />
+          <span className="font-medium">Test design</span>
         </button>
 
         <button

@@ -2,7 +2,15 @@ import type { ConnectionState, DeviceOption, LogEvent, ProjectFolder, ProjectTes
 
 export type Section = 'new-test' | 'devices' | 'settings';
 
-export type Pane = 'design-disabled' | 'editor' | 'execution' | 'devices' | 'settings';
+export type Pane = 'design' | 'editor' | 'execution' | 'devices' | 'settings';
+
+export type DesignPhase = 'idle' | 'awaiting_initial_input' | 'exploring' | 'script_generated' | 'saving' | 'error';
+
+export interface PromptCustomizations {
+  basePromptInstructions: string;
+  designModeInstructions: string;
+  executionModeInstructions: string;
+}
 
 export interface TestRef {
   folderId: string;
@@ -47,4 +55,17 @@ export interface AppState {
   showCommandMenu: boolean;
   composerInput: string;
   isApplyingRevision: boolean;
+  designSessionId: string | null;
+  designLogs: LogEvent[];
+  isDesignRunning: boolean;
+  designPhase: DesignPhase;
+  generatedScript: string | null;
+  pendingRevisionPrompt: string;
+  showDesignSaveDialog: boolean;
+  designSaveTargetFolderId: string | null;
+  designRequestedName: string;
+  designError: string | null;
+  promptCustomizations: PromptCustomizations;
+  isSavingPromptCustomizations: boolean;
+  promptCustomizationsError: string | null;
 }

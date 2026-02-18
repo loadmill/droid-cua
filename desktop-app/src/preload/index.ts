@@ -31,6 +31,14 @@ const api: DesktopApi = {
     stop: (payload) => ipcRenderer.invoke('execution:stop', payload),
     respond: (payload) => ipcRenderer.invoke('execution:respond', payload)
   },
+  design: {
+    start: () => ipcRenderer.invoke('design:start'),
+    input: (payload) => ipcRenderer.invoke('design:input', payload),
+    revise: (payload) => ipcRenderer.invoke('design:revise', payload),
+    save: (payload) => ipcRenderer.invoke('design:save', payload),
+    stop: (payload) => ipcRenderer.invoke('design:stop', payload),
+    getState: (payload) => ipcRenderer.invoke('design:getState', payload)
+  },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (next) => ipcRenderer.invoke('settings:set', next)
@@ -45,6 +53,11 @@ const api: DesktopApi = {
       const listener = (_event: Electron.IpcRendererEvent, payload: LogEvent) => handler(payload);
       ipcRenderer.on('events:deviceLog', listener);
       return () => ipcRenderer.off('events:deviceLog', listener);
+    },
+    onDesignLog: (handler) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: LogEvent) => handler(payload);
+      ipcRenderer.on('events:designLog', listener);
+      return () => ipcRenderer.off('events:designLog', listener);
     }
   }
 };

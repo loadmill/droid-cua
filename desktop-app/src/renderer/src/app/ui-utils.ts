@@ -23,5 +23,5 @@ export function modeLabel(currentPane: Pane): string {
   if (currentPane === 'execution') return 'Execution mode';
   if (currentPane === 'editor') return 'Editor mode';
   if (currentPane === 'settings') return 'Settings mode';
-  return 'Design mode (coming soon)';
+  return 'Design mode';
 }

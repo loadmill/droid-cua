@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ConnectionState } from '../../../preload/types';
-import type { AppState, Pane, Section, TestRef } from './types';
+import type { ConnectionState, LogEvent } from '../../../preload/types';
+import type { AppState, DesignPhase, Pane, PromptCustomizations, Section, TestRef } from './types';
 
 const defaultConnection: ConnectionState = {
   connected: false,
@@ -9,6 +9,25 @@ const defaultConnection: ConnectionState = {
   deviceId: null
 };
 
+const emptyPromptCustomizations: PromptCustomizations = {
+  basePromptInstructions: '',
+  designModeInstructions: '',
+  executionModeInstructions: ''
+};
+
+function readPromptCustomizations(settings: Record<string, unknown>): PromptCustomizations {
+  const raw =
+    settings.promptCustomizations && typeof settings.promptCustomizations === 'object'
+      ? (settings.promptCustomizations as Record<string, unknown>)
+      : {};
+
+  return {
+    basePromptInstructions: typeof raw.basePromptInstructions === 'string' ? raw.basePromptInstructions : '',
+    designModeInstructions: typeof raw.designModeInstructions === 'string' ? raw.designModeInstructions : '',
+    executionModeInstructions: typeof raw.executionModeInstructions === 'string' ? raw.executionModeInstructions : ''
+  };
+}
+
 function testRefKey(ref: TestRef): string {
   return `${ref.folderId}::${ref.testName.toLowerCase()}`;
 }
@@ -16,6 +35,26 @@ function testRefKey(ref: TestRef): string {
 function sameTestRef(a: TestRef | null, b: TestRef | null): boolean {
   if (!a || !b) return false;
   return a.folderId === b.folderId && a.testName.toLowerCase() === b.testName.toLowerCase();
+}
+
+function readDesignPhase(entry: LogEvent): DesignPhase | null {
+  const phase = entry.payload?.phase;
+  if (
+    phase === 'idle' ||
+    phase === 'awaiting_initial_input' ||
+    phase === 'exploring' ||
+    phase === 'script_generated' ||
+    phase === 'saving' ||
+    phase === 'error'
+  ) {
+    return phase;
+  }
+  return null;
+}
+
+function readScriptPayload(entry: LogEvent): string | null {
+  const script = entry.payload?.script;
+  return typeof script === 'string' ? script : null;
 }
 
 export function useAppController() {
@@ -51,12 +90,27 @@ export function useAppController() {
   const [composerInput, setComposerInput] = useState('');
   const [isApplyingRevision, setApplyingRevision] = useState(false);
 
+  const [designSessionId, setDesignSessionId] = useState<string | null>(null);
+  const [designLogs, setDesignLogs] = useState<LogEvent[]>([]);
+  const [isDesignRunning, setIsDesignRunning] = useState(false);
+  const [designPhase, setDesignPhase] = useState<DesignPhase>('idle');
+  const [generatedScript, setGeneratedScript] = useState<string | null>(null);
+  const [designInput, setDesignInput] = useState('');
+  const [pendingRevisionPrompt, setPendingRevisionPrompt] = useState('');
+  const [showDesignSaveDialog, setShowDesignSaveDialog] = useState(false);
+  const [designSaveTargetFolderId, setDesignSaveTargetFolderId] = useState<string | null>(null);
+  const [designRequestedName, setDesignRequestedName] = useState('');
+  const [designError, setDesignError] = useState<string | null>(null);
+  const [promptCustomizations, setPromptCustomizations] = useState<PromptCustomizations>(emptyPromptCustomizations);
+  const [isSavingPromptCustomizations, setIsSavingPromptCustomizations] = useState(false);
+  const [promptCustomizationsError, setPromptCustomizationsError] = useState<string | null>(null);
+
   const pane: Pane = useMemo(() => {
     if (section === 'devices') return 'devices';
     if (section === 'settings') return 'settings';
     if (isExecutionView) return 'execution';
     if (selectedTestRef) return 'editor';
-    return 'design-disabled';
+    return 'design';
   }, [isExecutionView, section, selectedTestRef]);
 
   const selectedTest = useMemo(() => {
@@ -107,6 +161,40 @@ export function useAppController() {
       }),
       window.desktopApi.events.onDeviceLog((entry) => {
         setDeviceLogs((prev) => [...prev, entry]);
+      }),
+      window.desktopApi.events.onDesignLog((entry) => {
+        setDesignLogs((prev) => [...prev, entry]);
+
+        const phase = readDesignPhase(entry);
+        if (phase) {
+          setDesignPhase(phase);
+        }
+
+        if (entry.eventType === 'design_started') {
+          setDesignError(null);
+          setGeneratedScript(null);
+          setShowDesignSaveDialog(false);
+          setPendingRevisionPrompt('');
+        }
+
+        if (entry.eventType === 'design_generated_script') {
+          const script = readScriptPayload(entry);
+          if (script) {
+            setGeneratedScript(script);
+            setDesignPhase('script_generated');
+            setIsDesignRunning(false);
+          }
+        }
+
+        if (entry.eventType === 'design_error') {
+          setDesignError(entry.text || 'Design mode failed.');
+          setDesignPhase('error');
+          setIsDesignRunning(false);
+        }
+
+        if (entry.eventType === 'design_saved' || entry.eventType === 'design_finished') {
+          setIsDesignRunning(false);
+        }
       })
     ];
 
@@ -134,9 +222,14 @@ export function useAppController() {
 
   useEffect(() => {
     void (async () => {
-      const [workspaceInfo, conn] = await Promise.all([window.desktopApi.workspace.getCurrent(), window.desktopApi.devices.getState()]);
+      const [workspaceInfo, conn, settings] = await Promise.all([
+        window.desktopApi.workspace.getCurrent(),
+        window.desktopApi.devices.getState(),
+        window.desktopApi.settings.get()
+      ]);
       setWorkspace(workspaceInfo);
       setConnection(conn);
+      setPromptCustomizations(readPromptCustomizations(settings));
       if (conn.platform) {
         setPlatform(conn.platform);
       }
@@ -309,6 +402,10 @@ export function useAppController() {
 
   async function handleRun(): Promise<void> {
     if (!selectedTestRef || !selectedTest) return;
+    if (designSessionId) {
+      setDesignError('Cannot run a test while design mode is active. Exit design mode first.');
+      return;
+    }
     try {
       const runRef = { ...selectedTestRef };
       const runKey = testRefKey(runRef);
@@ -401,6 +498,139 @@ export function useAppController() {
     }
   }
 
+  async function handleStartDesign(): Promise<string> {
+    if (designSessionId) return designSessionId;
+    setDesignError(null);
+    setDesignLogs([]);
+    setGeneratedScript(null);
+    setPendingRevisionPrompt('');
+    setShowDesignSaveDialog(false);
+
+    const result = await window.desktopApi.design.start();
+    setDesignSessionId(result.sessionId);
+    setDesignPhase('awaiting_initial_input');
+    setSection('new-test');
+    setSelectedTestRef(null);
+    setExecutionView(false);
+    setIsDesignRunning(false);
+    const firstExistingFolder = projectFolders.find((folder) => folder.exists);
+    setDesignSaveTargetFolderId(firstExistingFolder?.id ?? null);
+    return result.sessionId;
+  }
+
+  async function handleDesignInputSubmit(): Promise<void> {
+    const input = designInput.trim();
+    if (!input) return;
+
+    try {
+      let sessionId = designSessionId;
+      if (!sessionId) {
+        sessionId = await handleStartDesign();
+      }
+
+      await window.desktopApi.design.input({ sessionId, input });
+      setDesignInput('');
+      setDesignError(null);
+      if (designPhase !== 'script_generated') {
+        setDesignPhase('exploring');
+        setIsDesignRunning(true);
+      }
+    } catch (error) {
+      setDesignError(error instanceof Error ? error.message : 'Failed to submit design input.');
+      setIsDesignRunning(false);
+    }
+  }
+
+  async function handleDesignRevise(): Promise<void> {
+    if (!designSessionId) return;
+    const revisionPrompt = pendingRevisionPrompt.trim();
+    if (!revisionPrompt) return;
+
+    try {
+      const { script } = await window.desktopApi.design.revise({ sessionId: designSessionId, revisionPrompt });
+      setGeneratedScript(script);
+      setPendingRevisionPrompt('');
+      setDesignPhase('script_generated');
+      setDesignError(null);
+    } catch (error) {
+      setDesignError(error instanceof Error ? error.message : 'Failed to revise script.');
+    }
+  }
+
+  async function handleDesignSave(): Promise<void> {
+    if (!designSessionId) return;
+    if (!designSaveTargetFolderId) {
+      setDesignError('Select a project folder before saving.');
+      return;
+    }
+
+    try {
+      setDesignPhase('saving');
+      const saved = await window.desktopApi.design.save({
+        sessionId: designSessionId,
+        folderId: designSaveTargetFolderId,
+        requestedName: designRequestedName
+      });
+      setShowDesignSaveDialog(false);
+      setDesignSessionId(null);
+      setIsDesignRunning(false);
+      setDesignPhase('idle');
+      setDesignInput('');
+      setPendingRevisionPrompt('');
+      setGeneratedScript(null);
+      setDesignSaveTargetFolderId(null);
+      setDesignRequestedName('');
+      setDesignError(null);
+      const createdRef = { folderId: saved.folderId, testName: saved.createdName };
+      await refreshProjectsAndTests(createdRef);
+      setExecutionView(false);
+    } catch (error) {
+      setDesignError(error instanceof Error ? error.message : 'Failed to save generated test.');
+      setDesignPhase('script_generated');
+    }
+  }
+
+  async function handleDesignStop(): Promise<void> {
+    if (!designSessionId) return;
+    try {
+      await window.desktopApi.design.stop({ sessionId: designSessionId });
+    } catch (error) {
+      setDesignError(error instanceof Error ? error.message : 'Failed to stop design mode.');
+    } finally {
+      setDesignSessionId(null);
+      setIsDesignRunning(false);
+      setDesignPhase('idle');
+      setDesignLogs([]);
+      setDesignInput('');
+      setPendingRevisionPrompt('');
+      setGeneratedScript(null);
+      setShowDesignSaveDialog(false);
+      setDesignSaveTargetFolderId(null);
+      setDesignRequestedName('');
+      setDesignError(null);
+    }
+  }
+
+  function handleDesignDiscard(): void {
+    void handleDesignStop();
+  }
+
+  async function handleSavePromptCustomizations(): Promise<void> {
+    setIsSavingPromptCustomizations(true);
+    setPromptCustomizationsError(null);
+    try {
+      const current = await window.desktopApi.settings.get();
+      await window.desktopApi.settings.set({
+        ...current,
+        promptCustomizations
+      });
+    } catch (error) {
+      setPromptCustomizationsError(error instanceof Error ? error.message : 'Failed to save prompt settings.');
+    } finally {
+      setIsSavingPromptCustomizations(false);
+    }
+  }
+
   const state: AppState = {
     workspace,
     projectFolders,
@@ -432,7 +662,20 @@ export function useAppController() {
     isBusy,
     showCommandMenu,
     composerInput,
-    isApplyingRevision
+    isApplyingRevision,
+    designSessionId,
+    designLogs,
+    isDesignRunning,
+    designPhase,
+    generatedScript,
+    pendingRevisionPrompt,
+    showDesignSaveDialog,
+    designSaveTargetFolderId,
+    designRequestedName,
+    designError,
+    promptCustomizations,
+    isSavingPromptCustomizations,
+    promptCustomizationsError
   };
 
   const derived = {
@@ -441,7 +684,8 @@ export function useAppController() {
     selectedTest,
     isRunning,
     canApplyRevision,
-    executionLogs
+    executionLogs,
+    designInput
   };
 
   const actions = {
@@ -461,6 +705,13 @@ export function useAppController() {
     handleStop,
     handleExecutionResponse,
     handleApplyRevision,
+    handleStartDesign,
+    handleDesignInputSubmit,
+    handleDesignRevise,
+    handleDesignSave,
+    handleDesignStop,
+    handleDesignDiscard,
+    handleSavePromptCustomizations,
     setWorkspace,
     setProjectFolders,
     setTestsByFolder,
@@ -490,7 +741,15 @@ export function useAppController() {
     setBusy,
     setShowCommandMenu,
     setComposerInput,
-    setApplyingRevision
+    setApplyingRevision,
+    setDesignInput,
+    setPendingRevisionPrompt,
+    setShowDesignSaveDialog,
+    setDesignSaveTargetFolderId,
+    setDesignRequestedName,
+    setDesignError,
+    setPromptCustomizations,
+    setPromptCustomizationsError
   };
 
   return { state, derived, actions };

@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import type { LogEvent } from '../preload/types';
 import { connectDevice, getConnectionState, refreshDevices } from './services/device-service';
 import { respondExecution, startExecution, stopExecution } from './services/execution-service';
+import { getDesignState, hasActiveDesignSession, reviseGeneratedScript, saveGeneratedScript, startDesign, stopDesign, submitDesignInput } from './services/design-service';
 import { addProjectFolder, getProjectFolderById, listProjectFolders, removeProjectFolder, setProjectFolderAlias } from './services/project-folders-service';
 import { getSettings, setSettings } from './services/settings-service';
 import { applyRevisionToContent, createTest, deleteTest, listTests, readTest, renameTest, saveTest } from './services/test-service';
@@ -14,7 +15,7 @@ import { getWorkspaceInfo } from './services/workspace';
 let mainWindow: BrowserWindow | null = null;
 const execFileAsync = promisify(execFile);
 
-function sendEvent(channel: 'events:executionLog' | 'events:deviceLog', event: LogEvent): void {
+function sendEvent(channel: 'events:executionLog' | 'events:deviceLog' | 'events:designLog', event: LogEvent): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return;
   }
@@ -158,11 +159,25 @@ function setupHandlers(): void {
   );
   ipcMain.handle('devices:getState', async () => getConnectionState());
 
-  ipcMain.handle('execution:start', async (_event, payload: { testPath: string; testName: string }) =>
-    startExecution(payload.testPath, payload.testName, (entry) => sendEvent('events:executionLog', entry))
-  );
+  ipcMain.handle('execution:start', async (_event, payload: { testPath: string; testName: string }) => {
+    if (hasActiveDesignSession()) {
+      throw new Error('Cannot start test execution while design mode is active.');
+    }
+    return startExecution(payload.testPath, payload.testName, (entry) => sendEvent('events:executionLog', entry));
+  });
   ipcMain.handle('execution:stop', async (_event, payload: { runId: string }) => stopExecution(payload.runId));
   ipcMain.handle('execution:respond', async (_event, payload: { runId: string; input: string }) => respondExecution(payload.runId, payload.input));
+
+  ipcMain.handle('design:start', async () => startDesign((entry) => sendEvent('events:designLog', entry)));
+  ipcMain.handle('design:input', async (_event, payload: { sessionId: string; input: string }) => submitDesignInput(payload.sessionId, payload.input));
+  ipcMain.handle('design:revise', async (_event, payload: { sessionId: string; revisionPrompt: string }) =>
+    reviseGeneratedScript(payload.sessionId, payload.revisionPrompt)
+  );
+  ipcMain.handle('design:save', async (_event, payload: { sessionId: string; folderId: string; requestedName: string }) =>
+    saveGeneratedScript(payload.sessionId, { folderId: payload.folderId, requestedName: payload.requestedName })
+  );
+  ipcMain.handle('design:stop', async (_event, payload: { sessionId: string }) => stopDesign(payload.sessionId));
+  ipcMain.handle('design:getState', async (_event, payload: { sessionId: string }) => getDesignState(payload.sessionId));
 
   ipcMain.handle('settings:get', async () => getSettings());
   ipcMain.handle('settings:set', async (_event, next: Record<string, unknown>) => setSettings(next));

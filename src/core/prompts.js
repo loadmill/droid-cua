@@ -2,8 +2,20 @@
  * System prompt templates for different modes
  */
 
-export function buildBaseSystemPrompt(deviceInfo) {
-  return `
+function appendCustomSection(prompt, customText) {
+  const trimmed = typeof customText === "string" ? customText.trim() : "";
+  if (!trimmed) {
+    return prompt;
+  }
+  return `${prompt}
+
+CUSTOM INSTRUCTIONS:
+${trimmed}
+`;
+}
+
+export function buildBaseSystemPrompt(deviceInfo, customInstructions = {}) {
+  const prompt = `
   You are controlling an Android phone in a sandboxed testing environment.
   Follow the user's instructions to interact with the device.
 
@@ -66,15 +78,23 @@ export function buildBaseSystemPrompt(deviceInfo) {
   - Use Home button (ESC) to escape from stuck situations and restart
   - Back button navigates within apps
   `;
+
+  return appendCustomSection(prompt, customInstructions.basePromptInstructions);
 }
 
-export function buildDesignModePrompt(deviceInfo) {
-  const basePrompt = buildBaseSystemPrompt(deviceInfo);
+export function buildDesignModePrompt(deviceInfo, customInstructions = {}) {
+  const designCustomText = typeof customInstructions.designModeInstructions === "string" ? customInstructions.designModeInstructions.trim() : "";
+  const mergedBaseInstructions = [customInstructions.basePromptInstructions, designCustomText].filter(Boolean).join("\n\n");
+  const basePrompt = buildBaseSystemPrompt(deviceInfo, {
+    ...customInstructions,
+    basePromptInstructions: mergedBaseInstructions
+  });
 
-  return `${basePrompt}
+  const prompt = `${basePrompt}
 
 DESIGN MODE:
 You are helping design a test script for an Android app.
+Some tests intentionally validate negative outcomes (errors, failures, rejected inputs). These are expected and should be treated as successful progress when they match the test goal.
 
 Your task:
 1. Understand what the user wants to test from their initial instruction
@@ -135,12 +155,19 @@ WRONG Example (DON'T DO THIS):
 
 Remember: You are autonomous. Explore confidently. Generate simple, executable test scripts.
 `;
+
+  return prompt;
 }
 
-export function buildExecutionModePrompt(deviceInfo) {
-  const basePrompt = buildBaseSystemPrompt(deviceInfo);
+export function buildExecutionModePrompt(deviceInfo, customInstructions = {}) {
+  const executionCustomText = typeof customInstructions.executionModeInstructions === "string" ? customInstructions.executionModeInstructions.trim() : "";
+  const mergedBaseInstructions = [customInstructions.basePromptInstructions, executionCustomText].filter(Boolean).join("\n\n");
+  const basePrompt = buildBaseSystemPrompt(deviceInfo, {
+    ...customInstructions,
+    basePromptInstructions: mergedBaseInstructions
+  });
 
-  return `${basePrompt}
+  const prompt = `${basePrompt}
 
 EXECUTION MODE - Critical Behavior:
 You are executing test script commands one at a time. This is NOT a conversation.
@@ -160,4 +187,6 @@ Your process:
 
 Each instruction is independent. Do not reference previous instructions or ask about next steps.
 `;
+
+  return prompt;
 }

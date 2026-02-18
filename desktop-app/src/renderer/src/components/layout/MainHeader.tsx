@@ -9,8 +9,10 @@ interface MainHeaderProps {
   selectedTest: ProjectTestFile | undefined;
   connection: ConnectionState;
   activeRunId: string | null;
+  designSessionId: string | null;
   isStopping: boolean;
   onStop: () => void;
+  onStopDesign: () => void;
 }
 
 export function MainHeader({
@@ -19,8 +21,10 @@ export function MainHeader({
   selectedTest,
   connection,
   activeRunId,
+  designSessionId,
   isStopping,
-  onStop
+  onStop,
+  onStopDesign
 }: MainHeaderProps) {
   const title =
     pane === 'devices'
@@ -55,6 +59,17 @@ export function MainHeader({
           >
             {isStopping ? <Loader2 size={12} className="animate-spin" /> : <StopCircle size={12} />}
             {isStopping ? 'Stopping...' : 'Stop'}
+          </button>
+        ) : null}
+        {!activeRunId && designSessionId ? (
+          <button
+            type="button"
+            onClick={onStopDesign}
+            disabled={false}
+            className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-0.5 text-[10px] disabled:opacity-60"
+          >
+            <StopCircle size={12} />
+            Exit Design
           </button>
         ) : null}
       </div>

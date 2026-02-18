@@ -2,7 +2,7 @@ import { AppShell } from './components/layout/AppShell';
 import { MainHeader } from './components/layout/MainHeader';
 import { Sidebar } from './components/sidebar/Sidebar';
 import { DevicesPane } from './components/panes/DevicesPane';
-import { DesignDisabledPane } from './components/panes/DesignDisabledPane';
+import { DesignPane } from './components/panes/DesignPane';
 import { EditorPane } from './components/panes/EditorPane';
 import { ExecutionPane } from './components/panes/ExecutionPane';
 import { SettingsPane } from './components/panes/SettingsPane';
@@ -28,6 +28,11 @@ export function App() {
             activeRunId={state.activeRunId}
             runningTestRef={state.runningTestRef}
             onSectionChange={actions.setSection}
+            onNewTest={() => {
+              actions.setSection('new-test');
+              actions.setExecutionView(false);
+              actions.setSelectedTestRef(null);
+            }}
             onAddFolder={() => void actions.handleAddProjectFolder()}
             onOpenCreateDialog={(folderId) => {
               actions.setCreateTargetFolderId(folderId);
@@ -59,8 +64,10 @@ export function App() {
             selectedTest={derived.selectedTest}
             connection={state.connection}
             activeRunId={state.activeRunId}
+            designSessionId={state.designSessionId}
             isStopping={state.isStopping}
             onStop={() => void actions.handleStop()}
+            onStopDesign={() => void actions.handleDesignStop()}
           />
         }
       >
@@ -79,7 +86,32 @@ export function App() {
           />
         ) : null}
 
-        {derived.pane === 'design-disabled' ? <DesignDisabledPane /> : null}
+        {derived.pane === 'design' ? (
+          <DesignPane
+            designLogs={state.designLogs}
+            designPhase={state.designPhase}
+            isDesignRunning={state.isDesignRunning}
+            generatedScript={state.generatedScript}
+            designError={state.designError}
+            designInput={derived.designInput}
+            pendingRevisionPrompt={state.pendingRevisionPrompt}
+            projectFolders={state.projectFolders}
+            showSaveForm={state.showDesignSaveDialog}
+            designSaveTargetFolderId={state.designSaveTargetFolderId}
+            designRequestedName={state.designRequestedName}
+            onDesignInputChange={actions.setDesignInput}
+            onPendingRevisionPromptChange={actions.setPendingRevisionPrompt}
+            onDesignSubmit={actions.handleDesignInputSubmit}
+            onDesignStop={actions.handleDesignStop}
+            onDesignRevise={actions.handleDesignRevise}
+            onDesignDiscard={actions.handleDesignDiscard}
+            onOpenSaveForm={() => actions.setShowDesignSaveDialog(true)}
+            onCloseSaveForm={() => actions.setShowDesignSaveDialog(false)}
+            onSaveTargetFolderChange={actions.setDesignSaveTargetFolderId}
+            onDesignRequestedNameChange={actions.setDesignRequestedName}
+            onDesignSave={actions.handleDesignSave}
+          />
+        ) : null}
 
         {derived.pane === 'editor' ? (
           <EditorPane
@@ -109,7 +141,16 @@ export function App() {
           />
         ) : null}
 
-        {derived.pane === 'settings' ? <SettingsPane workspacePath={state.workspace?.rootPath} /> : null}
+        {derived.pane === 'settings' ? (
+          <SettingsPane
+            workspacePath={state.workspace?.rootPath}
+            promptCustomizations={state.promptCustomizations}
+            isSavingPromptCustomizations={state.isSavingPromptCustomizations}
+            promptCustomizationsError={state.promptCustomizationsError}
+            onPromptCustomizationsChange={actions.setPromptCustomizations}
+            onSavePromptCustomizations={actions.handleSavePromptCustomizations}
+          />
+        ) : null}
       </AppShell>
 
       <CreateTestDialog

@@ -1,6 +1,6 @@
 export type AppSection = 'new-test' | 'devices' | 'settings';
 
-export type AppMode = 'design-disabled' | 'editor' | 'execution' | 'devices' | 'settings';
+export type AppMode = 'design' | 'editor' | 'execution' | 'devices' | 'settings';
 
 export type LogKind =
   | 'user'
@@ -26,7 +26,15 @@ export type ExecutionEventType =
   | 'input_request'
   | 'run_finished'
   | 'error'
-  | 'system_message';
+  | 'system_message'
+  | 'design_started'
+  | 'design_status'
+  | 'design_waiting_for_input'
+  | 'design_user_input'
+  | 'design_generated_script'
+  | 'design_saved'
+  | 'design_error'
+  | 'design_finished';
 
 export type ExecutionActionType =
   | 'click'
@@ -111,8 +119,32 @@ export interface ExecutionStartResult {
   runId: string;
 }
 
+export interface DesignStartResult {
+  sessionId: string;
+}
+
 export interface ExecutionRespondResult {
   accepted: true;
+}
+
+export interface DesignInputResult {
+  accepted: true;
+}
+
+export interface DesignReviseResult {
+  script: string;
+}
+
+export interface DesignSaveResult {
+  createdName: string;
+  path: string;
+  folderId: string;
+}
+
+export interface DesignStateResult {
+  phase: 'idle' | 'awaiting_initial_input' | 'exploring' | 'script_generated' | 'saving' | 'error';
+  hasScript: boolean;
+  script?: string;
 }
 
 export interface SaveResult {
@@ -163,6 +195,14 @@ export interface DesktopApi {
     stop: (payload: { runId: string }) => Promise<{ stopped: true }>;
     respond: (payload: { runId: string; input: string }) => Promise<ExecutionRespondResult>;
   };
+  design: {
+    start: () => Promise<DesignStartResult>;
+    input: (payload: { sessionId: string; input: string }) => Promise<DesignInputResult>;
+    revise: (payload: { sessionId: string; revisionPrompt: string }) => Promise<DesignReviseResult>;
+    save: (payload: { sessionId: string; folderId: string; requestedName: string }) => Promise<DesignSaveResult>;
+    stop: (payload: { sessionId: string }) => Promise<{ stopped: true }>;
+    getState: (payload: { sessionId: string }) => Promise<DesignStateResult>;
+  };
   settings: {
     get: () => Promise<Record<string, unknown>>;
     set: (next: Record<string, unknown>) => Promise<void>;
@@ -170,6 +210,7 @@ export interface DesktopApi {
   events: {
     onExecutionLog: (handler: (event: LogEvent) => void) => () => void;
     onDeviceLog: (handler: (event: LogEvent) => void) => () => void;
+    onDesignLog: (handler: (event: LogEvent) => void) => () => void;
   };
 }
 

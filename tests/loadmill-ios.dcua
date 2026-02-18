@@ -1,0 +1,4 @@
+assert: iphone ui is visible
+loadmill: create a transction with amount=200
+assert: android ui is visible
+exit

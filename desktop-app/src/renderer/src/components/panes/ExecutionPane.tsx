@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LogEvent } from '../../../../preload/types';
+import { useAutoFollowScroll } from '../../app/useAutoFollowScroll';
 import { BottomComposer } from './BottomComposer';
 import { ExecutionInputRequestCard } from './execution/ExecutionInputRequestCard';
 import { ExecutionLoadmillCard } from './execution/ExecutionLoadmillCard';
@@ -117,6 +118,9 @@ export function ExecutionPane({
   });
 
   const renderItems = buildRenderItems(visibleLogs);
+  const { scrollRef, handleScroll } = useAutoFollowScroll(
+    `${renderItems.length}:${pendingExecutionInputRequest ? 'input' : 'no-input'}:${isRunning ? 'running' : 'idle'}`
+  );
 
   useEffect(() => {
     if (!pendingExecutionInputRequest) return;
@@ -145,7 +149,7 @@ export function ExecutionPane({
 
   return (
     <section className="grid min-h-0 flex-1 grid-rows-[1fr_auto]">
-      <div className="min-h-0 overflow-auto px-6 py-5 lg:px-10">
+      <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 overflow-auto px-6 py-5 lg:px-10">
         <div className="mx-auto max-w-[860px] text-[14px] leading-6 text-slate-700">
           {renderItems.length === 0 ? <div className="text-slate-500">Starting execution...</div> : null}
           {renderItems.map((item, idx) => {
