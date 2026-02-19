@@ -37,6 +37,10 @@ function isGroupStart(line: LogEvent, previous: LogEvent | undefined): boolean {
   return false;
 }
 
+function isScriptEchoAssistantMessage(text: string): boolean {
+  return text.includes('```');
+}
+
 export function DesignPane({
   designLogs,
   designPhase,
@@ -68,9 +72,23 @@ export function DesignPane({
         ? 'Describe script changes to revise...'
       : 'Guide or correct the agent...';
   const visibleLogs = designLogs.filter((line) => line.text.trim().length > 0);
+  const renderedLogs = visibleLogs
+    .filter((line) => {
+      if (!generatedScript) return true;
+      if (line.kind !== 'assistant') return true;
+      return !isScriptEchoAssistantMessage(line.text);
+    })
+    .map((line) => {
+      if (line.kind !== 'assistant') return line;
+      if (!line.text.includes('```')) return line;
+      return {
+        ...line,
+        text: line.text.replace(/```/g, '').trim()
+      };
+    });
   const isNewSessionState = visibleLogs.length === 0 && !generatedScript && designPhase !== 'script_generated';
   const { scrollRef, handleScroll } = useAutoFollowScroll(
-    `${visibleLogs.length}:${generatedScript ? 'script' : 'no-script'}:${showSaveForm ? 'save-form' : 'no-save-form'}`
+    `${renderedLogs.length}:${generatedScript ? 'script' : 'no-script'}:${showSaveForm ? 'save-form' : 'no-save-form'}`
   );
 
   return (
@@ -91,12 +109,12 @@ export function DesignPane({
             <div className="mt-4 text-[15px] font-medium text-slate-800">What do you want to test?</div>
           </div>
 
-          {designError && visibleLogs.length === 0 ? (
+          {designError && renderedLogs.length === 0 ? (
             <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] text-rose-700">{designError}</div>
           ) : null}
 
-          {visibleLogs.map((line, idx) => {
-            const prev = idx > 0 ? visibleLogs[idx - 1] : undefined;
+          {renderedLogs.map((line, idx) => {
+            const prev = idx > 0 ? renderedLogs[idx - 1] : undefined;
             return (
             <div key={`${line.ts}-${idx}`} className={isGroupStart(line, prev) ? (idx === 0 ? '' : 'mt-3.5') : 'mt-1'}>
               <ExecutionLogItem line={line} />

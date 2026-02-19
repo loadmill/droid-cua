@@ -66,6 +66,5 @@ export interface AppState {
   designRequestedName: string;
   designError: string | null;
   promptCustomizations: PromptCustomizations;
-  isSavingPromptCustomizations: boolean;
   promptCustomizationsError: string | null;
 }

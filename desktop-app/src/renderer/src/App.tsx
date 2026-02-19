@@ -145,10 +145,8 @@ export function App() {
           <SettingsPane
             workspacePath={state.workspace?.rootPath}
             promptCustomizations={state.promptCustomizations}
-            isSavingPromptCustomizations={state.isSavingPromptCustomizations}
             promptCustomizationsError={state.promptCustomizationsError}
             onPromptCustomizationsChange={actions.setPromptCustomizations}
-            onSavePromptCustomizations={actions.handleSavePromptCustomizations}
           />
         ) : null}
       </AppShell>

@@ -102,8 +102,8 @@ export function useAppController() {
   const [designRequestedName, setDesignRequestedName] = useState('');
   const [designError, setDesignError] = useState<string | null>(null);
   const [promptCustomizations, setPromptCustomizations] = useState<PromptCustomizations>(emptyPromptCustomizations);
-  const [isSavingPromptCustomizations, setIsSavingPromptCustomizations] = useState(false);
   const [promptCustomizationsError, setPromptCustomizationsError] = useState<string | null>(null);
+  const [promptCustomizationsHydrated, setPromptCustomizationsHydrated] = useState(false);
 
   const pane: Pane = useMemo(() => {
     if (section === 'devices') return 'devices';
@@ -230,12 +230,34 @@ export function useAppController() {
       setWorkspace(workspaceInfo);
       setConnection(conn);
       setPromptCustomizations(readPromptCustomizations(settings));
+      setPromptCustomizationsHydrated(true);
       if (conn.platform) {
         setPlatform(conn.platform);
       }
       await refreshProjectsAndTests();
     })();
   }, []);
+
+  useEffect(() => {
+    if (!promptCustomizationsHydrated) return;
+
+    const timeout = setTimeout(() => {
+      void (async () => {
+        try {
+          setPromptCustomizationsError(null);
+          const current = await window.desktopApi.settings.get();
+          await window.desktopApi.settings.set({
+            ...current,
+            promptCustomizations
+          });
+        } catch (error) {
+          setPromptCustomizationsError(error instanceof Error ? error.message : 'Failed to save prompt settings.');
+        }
+      })();
+    }, 450);
+
+    return () => clearTimeout(timeout);
+  }, [promptCustomizations, promptCustomizationsHydrated]);
 
   useEffect(() => {
     if (!selectedTestRef) {
@@ -615,22 +637,6 @@ export function useAppController() {
     void handleDesignStop();
   }
 
-  async function handleSavePromptCustomizations(): Promise<void> {
-    setIsSavingPromptCustomizations(true);
-    setPromptCustomizationsError(null);
-    try {
-      const current = await window.desktopApi.settings.get();
-      await window.desktopApi.settings.set({
-        ...current,
-        promptCustomizations
-      });
-    } catch (error) {
-      setPromptCustomizationsError(error instanceof Error ? error.message : 'Failed to save prompt settings.');
-    } finally {
-      setIsSavingPromptCustomizations(false);
-    }
-  }
-
   const state: AppState = {
     workspace,
     projectFolders,
@@ -674,7 +680,6 @@ export function useAppController() {
     designRequestedName,
     designError,
     promptCustomizations,
-    isSavingPromptCustomizations,
     promptCustomizationsError
   };
 
@@ -711,7 +716,6 @@ export function useAppController() {
     handleDesignSave,
     handleDesignStop,
     handleDesignDiscard,
-    handleSavePromptCustomizations,
     setWorkspace,
     setProjectFolders,
     setTestsByFolder,

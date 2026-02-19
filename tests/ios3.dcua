@@ -1,0 +1,8 @@
+Open Reminders app
+Click "New Reminder"
+Type "demo"
+Click "Done"
+Swipe left on the reminder titled "demo"
+Click "Delete"
+assert: No Reminders are visible on the screen
+exit

@@ -3,10 +3,8 @@ import type { PromptCustomizations } from '../../app/types';
 interface SettingsPaneProps {
   workspacePath: string | undefined;
   promptCustomizations: PromptCustomizations;
-  isSavingPromptCustomizations: boolean;
   promptCustomizationsError: string | null;
   onPromptCustomizationsChange: (next: PromptCustomizations) => void;
-  onSavePromptCustomizations: () => Promise<void>;
 }
 
 function PromptEditorCard({
@@ -37,10 +35,8 @@ function PromptEditorCard({
 export function SettingsPane({
   workspacePath,
   promptCustomizations,
-  isSavingPromptCustomizations,
   promptCustomizationsError,
-  onPromptCustomizationsChange,
-  onSavePromptCustomizations
+  onPromptCustomizationsChange
 }: SettingsPaneProps) {
   return (
     <section className="flex flex-1 items-start justify-center overflow-auto p-8">
@@ -70,17 +66,6 @@ export function SettingsPane({
         />
 
         {promptCustomizationsError ? <div className="text-[13px] text-rose-700">{promptCustomizationsError}</div> : null}
-
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => void onSavePromptCustomizations()}
-            disabled={isSavingPromptCustomizations}
-            className="rounded-full bg-slate-700 px-6 py-2 text-[13px] font-medium text-white disabled:opacity-60"
-          >
-            {isSavingPromptCustomizations ? 'Saving...' : 'Save'}
-          </button>
-        </div>
       </div>
     </section>
   );
