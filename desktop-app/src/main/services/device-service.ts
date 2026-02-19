@@ -2,6 +2,7 @@ import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { ConnectionState, DeviceOption, LogEvent } from '../../preload/types';
 import { importWorkspaceModule } from './module-loader';
+import { logDeviceEvent, syncDebugLoggingEnabled } from './debug-log-service';
 
 const execAsync = promisify(exec);
 
@@ -146,9 +147,20 @@ async function withCapturedConsole<T>(fn: () => Promise<T>, onLog: (event: LogEv
 }
 
 export async function refreshDevices(platform: Platform, onLog: (event: LogEvent) => void): Promise<DeviceOption[]> {
+  await syncDebugLoggingEnabled();
+  await logDeviceEvent({
+    event: 'device.refresh',
+    ids: { platform },
+    data: { stage: 'start' }
+  });
   pushLog(onLog, 'system', `Refreshing ${platform} devices...`);
   const devices = platform === 'ios' ? await getIosDevices() : await getAndroidDevices();
   pushLog(onLog, 'info', `Found ${devices.length} ${platform} device(s).`);
+  await logDeviceEvent({
+    event: 'device.refresh',
+    ids: { platform },
+    data: { stage: 'end', deviceCount: devices.length }
+  });
   return devices;
 }
 
@@ -156,37 +168,75 @@ export async function connectDevice(
   payload: { platform: Platform; deviceName: string },
   onLog: (event: LogEvent) => void
 ): Promise<ConnectionState> {
+  await syncDebugLoggingEnabled();
+  await logDeviceEvent({
+    event: 'device.connect',
+    ids: {
+      platform: payload.platform,
+      deviceName: payload.deviceName
+    },
+    data: { stage: 'start' }
+  });
+
   const { connectToDevice, getDeviceInfo } = await importWorkspaceModule<{
     connectToDevice: (deviceName: string, platform: Platform) => Promise<string>;
     getDeviceInfo: (deviceId: string) => Promise<unknown>;
   }>('src/device/connection.js');
 
-  const connection = await withCapturedConsole(async () => {
-    const deviceId = await connectToDevice(payload.deviceName, payload.platform);
-    const rawDeviceInfo = await getDeviceInfo(deviceId);
-    const deviceInfo: DeviceInfo = {
-      device_width: Number((rawDeviceInfo as Record<string, unknown>).device_width),
-      device_height: Number((rawDeviceInfo as Record<string, unknown>).device_height),
-      scaled_width: Number((rawDeviceInfo as Record<string, unknown>).scaled_width),
-      scaled_height: Number((rawDeviceInfo as Record<string, unknown>).scaled_height),
-      scale: Number((rawDeviceInfo as Record<string, unknown>).scale)
-    };
+  try {
+    const connection = await withCapturedConsole(async () => {
+      const deviceId = await connectToDevice(payload.deviceName, payload.platform);
+      const rawDeviceInfo = await getDeviceInfo(deviceId);
+      const deviceInfo: DeviceInfo = {
+        device_width: Number((rawDeviceInfo as Record<string, unknown>).device_width),
+        device_height: Number((rawDeviceInfo as Record<string, unknown>).device_height),
+        scaled_width: Number((rawDeviceInfo as Record<string, unknown>).scaled_width),
+        scaled_height: Number((rawDeviceInfo as Record<string, unknown>).scaled_height),
+        scale: Number((rawDeviceInfo as Record<string, unknown>).scale)
+      };
 
-    const next: ConnectionState = {
-      connected: true,
-      platform: payload.platform,
-      deviceName: payload.deviceName,
-      deviceId,
-      resolution: `${deviceInfo.scaled_width}x${deviceInfo.scaled_height}`,
-      deviceInfo
-    };
+      const next: ConnectionState = {
+        connected: true,
+        platform: payload.platform,
+        deviceName: payload.deviceName,
+        deviceId,
+        resolution: `${deviceInfo.scaled_width}x${deviceInfo.scaled_height}`,
+        deviceInfo
+      };
 
-    state.connection = next;
-    return next;
-  }, onLog);
+      state.connection = next;
+      return next;
+    }, onLog);
 
-  pushLog(onLog, 'success', `Connected to ${payload.deviceName}.`);
-  return connection;
+    pushLog(onLog, 'success', `Connected to ${payload.deviceName}.`);
+    await logDeviceEvent({
+      event: 'device.connect',
+      ids: {
+        platform: payload.platform,
+        deviceName: payload.deviceName
+      },
+      data: {
+        stage: 'success',
+        deviceId: connection.deviceId,
+        resolution: connection.resolution
+      }
+    });
+    return connection;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown connection error';
+    await logDeviceEvent({
+      event: 'device.error',
+      ids: {
+        platform: payload.platform,
+        deviceName: payload.deviceName
+      },
+      data: {
+        operation: 'connect',
+        message
+      }
+    });
+    throw error;
+  }
 }
 
 export function getConnectionState(): ConnectionState {

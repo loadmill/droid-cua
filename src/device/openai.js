@@ -1,11 +1,13 @@
 import OpenAI from "openai";
 import dotenv from "dotenv";
 import { logger } from "../utils/logger.js";
+import { CuaDebugTracer } from "../utils/cua-debug-tracer.js";
 dotenv.config();
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+const cuaDebugTracer = new CuaDebugTracer(logger);
 
 /**
  * Revise a test script based on user feedback using simple chat completion
@@ -47,6 +49,7 @@ export async function sendCUARequest({
   previousResponseId,
   callId,
   deviceInfo,
+  debugContext,
 }) {
   const input = [...messages];
 
@@ -75,71 +78,22 @@ export async function sendCUARequest({
     reasoning: { generate_summary: "concise" },
     truncation: "auto",
   };
-
-  // Log request details (without full screenshot to avoid clutter)
-  const requestLog = {
-    ...requestParams,
-    input: input.map(item => {
-      if (item.type === "computer_call_output" && item.output?.image_url) {
-        // Extract actual base64 length from the image_url
-        const imageUrl = item.output.image_url;
-        const base64Data = imageUrl.replace('data:image/png;base64,', '');
-        return {
-          ...item,
-          output: {
-            ...item.output,
-            image_url: `data:image/png;base64,[${base64Data.length} chars]`
-          },
-          current_url: item.current_url,
-          acknowledged_safety_checks: item.acknowledged_safety_checks
-        };
-      }
-      return item;
-    })
-  };
-
-  logger.debug('CUA Request:', requestLog);
+  const trace = cuaDebugTracer.startTurn({
+    requestParams,
+    input,
+    screenshotBase64,
+    deviceInfo,
+    debugContext,
+    previousResponseId
+  });
+  logger.debug("CUA Request:", trace.requestLog);
 
   try {
     const response = await openai.responses.create(requestParams);
-
-    // Log ALL output item types to catch everything
-    const outputTypes = (response.output || []).map(item => item.type);
-
-    const toolCalls = (response.output || [])
-      .filter(item => item.type === 'computer_call')
-      .map(item => ({
-        call_id: item.call_id,
-        action_type: item.action?.type
-      }));
-
-    const safetyChecks = (response.output || [])
-      .filter(item => item.type === 'pending_safety_check')
-      .map(item => ({
-        id: item.id,
-        code: item.code
-      }));
-
-    // Log full output array if there are unaccounted items
-    const accountedItems = toolCalls.length + safetyChecks.length;
-    const totalItems = response.output?.length || 0;
-
-    logger.debug('CUA Response:', {
-      id: response.id,
-      output_length: totalItems,
-      output_types: outputTypes,
-      tool_calls: toolCalls.length > 0 ? toolCalls : 'none',
-      pending_safety_checks: safetyChecks.length > 0 ? safetyChecks : 'none'
-    });
-
-    // If we're missing items in our logging, log the full output for investigation
-    if (accountedItems < totalItems) {
-      logger.debug('UNACCOUNTED OUTPUT ITEMS - Full output array:', response.output);
-    }
-
+    cuaDebugTracer.onResponse(trace, response);
     return response;
   } catch (err) {
-    logger.error('CUA Request failed', { request: requestLog, error: err });
+    cuaDebugTracer.onError(trace, err);
     throw err;
   }
 }

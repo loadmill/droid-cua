@@ -24,3 +24,8 @@ export async function setSettings(next: Record<string, unknown>): Promise<void> 
   const file = await getConfigPath();
   await writeFile(file, JSON.stringify(next, null, 2), 'utf-8');
 }
+
+export async function getDebugMode(): Promise<boolean> {
+  const settings = await getSettings();
+  return settings.debugMode === true;
+}

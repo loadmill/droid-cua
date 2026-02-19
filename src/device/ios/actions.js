@@ -7,6 +7,7 @@
 import * as appium from "./appium-client.js";
 import { getActiveSession, getDevicePixelRatio } from "./connection.js";
 import { logger } from "../../utils/logger.js";
+import { emitDesktopDebug, truncateForDebug } from "../../utils/desktop-debug.js";
 
 /**
  * Handle an action from the CUA model
@@ -35,6 +36,26 @@ export async function handleModelAction(simulatorId, action, scale = 1.0, contex
   }
 
   try {
+    emitDesktopDebug(
+      "device.action.execute",
+      "device",
+      {
+        runId: context?.runId,
+        sessionId: context?.sessionId,
+        stepId: context?.stepId,
+        instructionIndex: context?.instructionIndex
+      },
+      {
+        platform: "ios",
+        simulatorId,
+        actionType: action?.type,
+        scale,
+        text: typeof action?.text === "string" ? truncateForDebug(action.text, 300) : undefined,
+        keyCount: Array.isArray(action?.keys) ? action.keys.length : 0,
+        pathPoints: Array.isArray(action?.path) ? action.path.length : 0
+      }
+    );
+
     switch (action.type) {
       case "click": {
         // Convert scaled coordinates to pixels, then to logical points for Appium
@@ -131,6 +152,23 @@ export async function handleModelAction(simulatorId, action, scale = 1.0, contex
       message: error.message,
       stack: error.stack,
     });
+
+    emitDesktopDebug(
+      "device.error",
+      "device",
+      {
+        runId: context?.runId,
+        sessionId: context?.sessionId,
+        stepId: context?.stepId,
+        instructionIndex: context?.instructionIndex
+      },
+      {
+        platform: "ios",
+        operation: "action.execute",
+        actionType: action?.type,
+        message: error.message
+      }
+    );
 
     addOutput({
       type: "error",

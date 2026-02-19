@@ -67,4 +67,5 @@ export interface AppState {
   designError: string | null;
   promptCustomizations: PromptCustomizations;
   promptCustomizationsError: string | null;
+  debugMode: boolean;
 }

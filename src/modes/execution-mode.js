@@ -14,6 +14,7 @@ import {
   executeLoadmillInstruction,
 } from "../device/loadmill.js";
 import { logger } from "../utils/logger.js";
+import { emitDesktopDebug } from "../utils/desktop-debug.js";
 
 /**
  * Execution Mode - Run test scripts line-by-line
@@ -268,6 +269,12 @@ export class ExecutionMode {
         screenshotBase64,
         previousResponseId: this.session.previousResponseId,
         deviceInfo: this.session.deviceInfo,
+        debugContext: {
+          scope: "execution",
+          runId: context?.runId,
+          stepId: stepContext?.stepId,
+          instructionIndex: stepContext?.instructionIndex
+        }
       });
 
       // Track actions for stats
@@ -363,6 +370,21 @@ export class ExecutionMode {
 
       // Check if we've exceeded max retries
       if (retryCount >= MAX_RETRIES) {
+        emitDesktopDebug(
+          "reconnect.attempt",
+          "device",
+          {
+            runId: context?.runId,
+            stepId: stepContext?.stepId,
+            instructionIndex: stepContext?.instructionIndex
+          },
+          {
+            stage: "start",
+            reason: err.message,
+            attemptsExhausted: retryCount,
+            maxRetries: MAX_RETRIES
+          }
+        );
         this.emit(addOutput, 'error', `Failed after ${MAX_RETRIES} retries. Device may be disconnected.`, context, stepContext, {
           eventType: 'error',
           payload: {
@@ -386,6 +408,20 @@ export class ExecutionMode {
           this.session.deviceId = deviceId;
           this.session.deviceInfo = deviceInfo;
 
+          emitDesktopDebug(
+            "reconnect.attempt",
+            "device",
+            {
+              runId: context?.runId,
+              stepId: stepContext?.stepId,
+              instructionIndex: stepContext?.instructionIndex
+            },
+            {
+              stage: "success",
+              deviceId
+            }
+          );
+
           this.emit(addOutput, 'success', 'Reconnected to device. Resuming...', context, stepContext, {
             eventType: 'system_message'
           });
@@ -393,6 +429,19 @@ export class ExecutionMode {
           // Reset retry count and try again
           return await this.executeInstruction(instruction, context, 0, stepContext);
         } catch (reconnectErr) {
+          emitDesktopDebug(
+            "reconnect.attempt",
+            "device",
+            {
+              runId: context?.runId,
+              stepId: stepContext?.stepId,
+              instructionIndex: stepContext?.instructionIndex
+            },
+            {
+              stage: "failed",
+              message: reconnectErr.message
+            }
+          );
           logger.error('Failed to reconnect to device', { error: reconnectErr.message });
           this.emit(addOutput, 'error', `Could not reconnect to device: ${reconnectErr.message}`, context, stepContext, {
             eventType: 'error',
@@ -412,6 +461,33 @@ export class ExecutionMode {
           reason: err.message
         }
       });
+
+      emitDesktopDebug(
+        "retry.attempt",
+        "device",
+        {
+          runId: context?.runId,
+          stepId: stepContext?.stepId,
+          instructionIndex: stepContext?.instructionIndex
+        },
+        {
+          attempt: retryCount + 1,
+          maxRetries: MAX_RETRIES,
+          reason: err.message
+        }
+      );
+      emitDesktopDebug(
+        "device.disconnect",
+        "device",
+        {
+          runId: context?.runId,
+          stepId: stepContext?.stepId,
+          instructionIndex: stepContext?.instructionIndex
+        },
+        {
+          reason: err.message
+        }
+      );
 
       // Track retry for stats
       this.stats.retryCount++;

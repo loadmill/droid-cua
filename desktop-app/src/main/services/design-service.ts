@@ -6,6 +6,7 @@ import { importWorkspaceModule } from './module-loader';
 import { createTest, saveTest } from './test-service';
 import { getProjectFolderById } from './project-folders-service';
 import { getPromptCustomizations } from './prompt-customizations-service';
+import { endDesignSession, startDesignSession, syncDebugLoggingEnabled } from './debug-log-service';
 
 type DesignPhase = 'idle' | 'awaiting_initial_input' | 'exploring' | 'script_generated' | 'saving' | 'error';
 
@@ -44,7 +45,7 @@ interface ActiveDesignSession {
     runFullTurn: (
       response: unknown,
       trackAction?: ((action: { type: string } | null) => boolean) | null,
-      context?: { addOutput: (item: DesignOutputItem) => void; runId?: string } | null
+      context?: { addOutput: (item: DesignOutputItem) => void; runId?: string; sessionId?: string } | null
     ) => Promise<string>;
   };
   sendCUARequest: (args: {
@@ -52,6 +53,10 @@ interface ActiveDesignSession {
     screenshotBase64?: string;
     previousResponseId?: string | null;
     deviceInfo: unknown;
+    debugContext?: {
+      scope: 'design';
+      sessionId: string;
+    };
   }) => Promise<{ id: string }>;
   getScreenshotAsBase64: (deviceId: string, deviceInfo: unknown) => Promise<string>;
   reviseTestScript: (originalScript: string, revisionRequest: string) => Promise<string>;
@@ -103,6 +108,11 @@ function extractGeneratedScript(transcript: string[]): string | null {
       if (normalized) {
         return normalized;
       }
+
+      const plainNormalized = normalizePlainScriptAssistantText(assistantText);
+      if (plainNormalized) {
+        return plainNormalized;
+      }
     }
     return null;
   }
@@ -145,6 +155,33 @@ function normalizeScriptLikeAssistantText(text: string): string | null {
   return parsedLines.join('\n');
 }
 
+function normalizePlainScriptAssistantText(text: string): string | null {
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 3) {
+    return null;
+  }
+
+  const isScriptLine = (line: string): boolean =>
+    /^assert\s*:/.test(line.toLowerCase()) ||
+    /^exit$/i.test(line) ||
+    /^(open|tap|click|dismiss|navigate|scroll|type|press|wait|swipe|drag|select|find|launch|enter|go|choose|verify|check|ensure)\b/i.test(line);
+
+  const invalidLine = lines.find((line) => !isScriptLine(line));
+  if (invalidLine) {
+    return null;
+  }
+
+  const normalized = [...lines];
+  if (!normalized.some((line) => line.toLowerCase() === 'exit')) {
+    normalized.push('exit');
+  }
+  return normalized.join('\n');
+}
+
 function finishActiveDesign(reason: 'saved' | 'stopped' | 'error'): void {
   if (!activeDesign) return;
   const sessionId = activeDesign.sessionId;
@@ -158,6 +195,7 @@ function finishActiveDesign(reason: 'saved' | 'stopped' | 'error'): void {
   activeDesign.session.updateResponseId(undefined);
   activeDesign.session.clearMessages();
   activeDesign = null;
+  void endDesignSession(sessionId, { reason });
 }
 
 async function runLoop(): Promise<void> {
@@ -190,7 +228,11 @@ async function runLoop(): Promise<void> {
         messages: activeDesign.session.messages,
         screenshotBase64,
         previousResponseId: activeDesign.session.previousResponseId,
-        deviceInfo: activeDesign.session.deviceInfo
+        deviceInfo: activeDesign.session.deviceInfo,
+        debugContext: {
+          scope: 'design',
+          sessionId: activeDesign.sessionId
+        }
       });
 
       const newResponseId = await activeDesign.engine.runFullTurn(
@@ -208,7 +250,8 @@ async function runLoop(): Promise<void> {
               runId: activeDesign.sessionId
             });
           },
-          runId: activeDesign.sessionId
+          runId: activeDesign.sessionId,
+          sessionId: activeDesign.sessionId
         }
       );
 
@@ -243,13 +286,19 @@ async function runLoop(): Promise<void> {
       return;
     }
     const message = error instanceof Error ? error.message : 'Unknown design mode error';
+    const recoverableUiMessage = 'The agent got briefly confused.';
     activeDesign.consecutiveErrorCount += 1;
 
     if (activeDesign.consecutiveErrorCount <= 2) {
-      emit(activeDesign.onLog, 'error', message, {
-        payload: { message, sessionId: activeDesign.sessionId, recoverable: true }
+      emit(activeDesign.onLog, 'warning', recoverableUiMessage, {
+        payload: {
+          message: recoverableUiMessage,
+          technicalMessage: message,
+          sessionId: activeDesign.sessionId,
+          recoverable: true
+        }
       });
-      emit(activeDesign.onLog, 'info', 'Recovering from error and continuing...', {
+      emit(activeDesign.onLog, 'info', 'Agent is recovering and continuing from the current screen...', {
         eventType: 'design_status',
         payload: { phase: activeDesign.phase, sessionId: activeDesign.sessionId, recovering: true }
       });
@@ -277,9 +326,14 @@ If the objective is already completed, generate the final test script now.`;
 
     if (!shouldContinueAfterFinally) {
       activeDesign.phase = 'error';
-      emit(activeDesign.onLog, 'error', message, {
+      emit(activeDesign.onLog, 'error', 'Design mode could not recover and stopped. Check debug logs for details.', {
         eventType: 'design_error',
-        payload: { message, sessionId: activeDesign.sessionId, recoverable: false }
+        payload: {
+          message: 'Design mode could not recover and stopped. Check debug logs for details.',
+          technicalMessage: message,
+          sessionId: activeDesign.sessionId,
+          recoverable: false
+        }
       });
     }
   } finally {
@@ -310,6 +364,8 @@ export async function startDesign(onLog: (event: LogEvent) => void): Promise<{ s
     throw new Error('Missing device info. Reconnect the device before starting design mode.');
   }
 
+  await syncDebugLoggingEnabled();
+
   const [{ Session }, { ExecutionEngine }, { buildDesignModePrompt }, { sendCUARequest, reviseTestScript }, { getScreenshotAsBase64 }] = await Promise.all([
     importWorkspaceModule<{ Session: new (deviceId: string, deviceInfo: unknown) => ActiveDesignSession['session'] }>('src/core/session.js'),
     importWorkspaceModule<{ ExecutionEngine: new (session: unknown, options?: { recordScreenshots?: boolean }) => ActiveDesignSession['engine'] }>(
@@ -333,6 +389,10 @@ export async function startDesign(onLog: (event: LogEvent) => void): Promise<{ s
   const promptCustomizations = await getPromptCustomizations();
 
   const sessionId = randomUUID();
+  await startDesignSession(sessionId, {
+    platform: connection.platform,
+    deviceName: connection.deviceName
+  });
   const session = new Session(connection.deviceId, {
     ...connection.deviceInfo
   });

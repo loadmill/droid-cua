@@ -1,6 +1,7 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import { logger } from "../../utils/logger.js";
+import { emitDesktopDebug, truncateForDebug } from "../../utils/desktop-debug.js";
 
 const execAsync = promisify(exec);
 
@@ -24,6 +25,31 @@ export async function handleModelAction(deviceId, action, scale = 1.0, context =
 
   try {
     const { x, y, x1, y1, x2, y2, text, keys, path } = action;
+    emitDesktopDebug(
+      "device.action.execute",
+      "device",
+      {
+        runId: context?.runId,
+        sessionId: context?.sessionId,
+        stepId: context?.stepId,
+        instructionIndex: context?.instructionIndex
+      },
+      {
+        platform: "android",
+        deviceId,
+        actionType: action?.type,
+        scale,
+        x,
+        y,
+        x1,
+        y1,
+        x2,
+        y2,
+        text: typeof text === "string" ? truncateForDebug(text, 300) : undefined,
+        keyCount: Array.isArray(keys) ? keys.length : 0,
+        pathPoints: Array.isArray(path) ? path.length : 0
+      }
+    );
 
     switch (action.type) {
       case "click":
@@ -100,6 +126,23 @@ export async function handleModelAction(deviceId, action, scale = 1.0, context =
       message: error.message,
       stack: error.stack
     });
+
+    emitDesktopDebug(
+      "device.error",
+      "device",
+      {
+        runId: context?.runId,
+        sessionId: context?.sessionId,
+        stepId: context?.stepId,
+        instructionIndex: context?.instructionIndex
+      },
+      {
+        platform: "android",
+        operation: "action.execute",
+        actionType: action?.type,
+        message: error.message
+      }
+    );
 
     // Show user-friendly error message
     addOutput({

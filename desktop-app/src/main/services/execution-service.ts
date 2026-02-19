@@ -4,6 +4,7 @@ import type { LogEvent } from '../../preload/types';
 import { getConnectionState } from './device-service';
 import { importWorkspaceModule } from './module-loader';
 import { getPromptCustomizations } from './prompt-customizations-service';
+import { endExecutionSession, startExecutionSession, syncDebugLoggingEnabled } from './debug-log-service';
 
 let activeRun: { runId: string; mode: { shouldStop: boolean } | null } = {
   runId: '',
@@ -51,6 +52,14 @@ export async function startExecution(testPath: string, testName: string, onLog: 
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
+
+  await syncDebugLoggingEnabled();
+  await startExecutionSession(runId, {
+    testName: filename,
+    instructionsTotal: instructions.length,
+    platform: connection.platform,
+    deviceName: connection.deviceName
+  });
 
   const [{ Session }, { ExecutionEngine }, { ExecutionMode }, { buildExecutionModePrompt }, { logger }] = await Promise.all([
     importWorkspaceModule<{ Session: new (deviceId: string, deviceInfo: unknown) => { deviceInfo: unknown; setSystemPrompt: (prompt: string) => void; deviceName?: string | null } }>('src/core/session.js'),
@@ -177,6 +186,17 @@ export async function startExecution(testPath: string, testName: string, onLog: 
         }
       });
       activeRun = { runId: '', mode: null };
+      void endExecutionSession(runId, {
+        success: runSuccess,
+        error: runError,
+        durationMs,
+        instructionsTotal: instructions.length,
+        instructionsCompleted: stats?.instructionsCompleted ?? 0,
+        actionsTotal: stats?.actionCount ?? 0,
+        assertionsPassed: stats?.assertionsPassed ?? 0,
+        assertionsFailed: stats?.assertionsFailed ?? 0,
+        retries: stats?.retryCount ?? 0
+      });
     });
 
   return { runId };

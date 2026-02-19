@@ -1,7 +1,9 @@
 import path from 'node:path';
+import { access } from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import dotenv from 'dotenv';
 import type { LogEvent } from '../preload/types';
 import { connectDevice, getConnectionState, refreshDevices } from './services/device-service';
@@ -11,6 +13,7 @@ import { addProjectFolder, getProjectFolderById, listProjectFolders, removeProje
 import { getSettings, setSettings } from './services/settings-service';
 import { applyRevisionToContent, createTest, deleteTest, listTests, readTest, renameTest, saveTest } from './services/test-service';
 import { getWorkspaceInfo } from './services/workspace';
+import { getCurrentLogFilePath, getLogsDirPath, installWorkspaceDebugBridge } from './services/debug-log-service';
 
 let mainWindow: BrowserWindow | null = null;
 const execFileAsync = promisify(execFile);
@@ -61,6 +64,78 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
+}
+
+async function pathExists(targetPath: string): Promise<boolean> {
+  try {
+    await access(targetPath, fsConstants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function revealTarget(targetPath: string, kind: 'file' | 'directory'): Promise<void> {
+  if (process.platform === 'darwin') {
+    if (kind === 'file') {
+      await execFileAsync('open', ['-R', targetPath]);
+      return;
+    }
+    await execFileAsync('open', [targetPath]);
+    return;
+  }
+
+  if (process.platform === 'win32') {
+    if (kind === 'file') {
+      await execFileAsync('explorer.exe', [`/select,${targetPath}`]);
+      return;
+    }
+    await execFileAsync('explorer.exe', [targetPath]);
+    return;
+  }
+
+  const openError = await shell.openPath(targetPath);
+  if (openError) {
+    throw new Error(openError);
+  }
+}
+
+function setupAppMenu(): void {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      role: 'appMenu'
+    },
+    {
+      role: 'editMenu'
+    },
+    {
+      role: 'viewMenu'
+    },
+    {
+      role: 'windowMenu'
+    },
+    {
+      role: 'help',
+      submenu: [
+        {
+          label: 'Show Log File',
+          click: () => {
+            void (async () => {
+              const currentLogFile = await getCurrentLogFilePath();
+              if (currentLogFile && (await pathExists(currentLogFile))) {
+                await revealTarget(currentLogFile, 'file');
+                return;
+              }
+
+              const logsDir = await getLogsDirPath();
+              await revealTarget(logsDir, 'directory');
+            })();
+          }
+        }
+      ]
+    }
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function setupHandlers(): void {
@@ -190,7 +265,9 @@ function loadEnv(): void {
 
 app.whenReady().then(() => {
   loadEnv();
+  installWorkspaceDebugBridge();
   setupHandlers();
+  setupAppMenu();
   createWindow();
 
   app.on('activate', () => {

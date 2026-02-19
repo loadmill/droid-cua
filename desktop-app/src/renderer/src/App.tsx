@@ -147,6 +147,8 @@ export function App() {
             promptCustomizations={state.promptCustomizations}
             promptCustomizationsError={state.promptCustomizationsError}
             onPromptCustomizationsChange={actions.setPromptCustomizations}
+            debugMode={state.debugMode}
+            onDebugModeChange={actions.setDebugMode}
           />
         ) : null}
       </AppShell>

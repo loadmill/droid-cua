@@ -5,6 +5,8 @@ interface SettingsPaneProps {
   promptCustomizations: PromptCustomizations;
   promptCustomizationsError: string | null;
   onPromptCustomizationsChange: (next: PromptCustomizations) => void;
+  debugMode: boolean;
+  onDebugModeChange: (enabled: boolean) => void;
 }
 
 function PromptEditorCard({
@@ -36,13 +38,31 @@ export function SettingsPane({
   workspacePath,
   promptCustomizations,
   promptCustomizationsError,
-  onPromptCustomizationsChange
+  onPromptCustomizationsChange,
+  debugMode,
+  onDebugModeChange
 }: SettingsPaneProps) {
   return (
     <section className="flex flex-1 items-start justify-center overflow-auto p-8">
       <div className="w-full max-w-4xl space-y-4">
         <div className="mt-2 text-[13px] text-slate-600">Desktop config is stored locally in app user data. OPENAI_API_KEY is read from workspace <code>.env</code>.</div>
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-[12px] text-slate-600">Workspace: {workspacePath ?? 'loading...'}</div>
+        <div className="rounded-md border border-slate-200 bg-white p-4">
+          <label className="flex items-start justify-between gap-6">
+            <div>
+              <div className="text-[15px] font-semibold text-slate-900">Debug mode</div>
+              <div className="mt-1 text-[13px] text-slate-600">
+                Write structured diagnostic logs for CUA, device operations, retries, and reconnection flows.
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={debugMode}
+              onChange={(event) => onDebugModeChange(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+          </label>
+        </div>
 
         <PromptEditorCard
           title="Base Prompt Custom Instructions"

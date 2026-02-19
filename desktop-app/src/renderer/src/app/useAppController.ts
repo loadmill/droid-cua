@@ -28,6 +28,10 @@ function readPromptCustomizations(settings: Record<string, unknown>): PromptCust
   };
 }
 
+function readDebugMode(settings: Record<string, unknown>): boolean {
+  return settings.debugMode === true;
+}
+
 function testRefKey(ref: TestRef): string {
   return `${ref.folderId}::${ref.testName.toLowerCase()}`;
 }
@@ -103,6 +107,7 @@ export function useAppController() {
   const [designError, setDesignError] = useState<string | null>(null);
   const [promptCustomizations, setPromptCustomizations] = useState<PromptCustomizations>(emptyPromptCustomizations);
   const [promptCustomizationsError, setPromptCustomizationsError] = useState<string | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
   const [promptCustomizationsHydrated, setPromptCustomizationsHydrated] = useState(false);
 
   const pane: Pane = useMemo(() => {
@@ -230,6 +235,7 @@ export function useAppController() {
       setWorkspace(workspaceInfo);
       setConnection(conn);
       setPromptCustomizations(readPromptCustomizations(settings));
+      setDebugMode(readDebugMode(settings));
       setPromptCustomizationsHydrated(true);
       if (conn.platform) {
         setPlatform(conn.platform);
@@ -248,7 +254,8 @@ export function useAppController() {
           const current = await window.desktopApi.settings.get();
           await window.desktopApi.settings.set({
             ...current,
-            promptCustomizations
+            promptCustomizations,
+            debugMode
           });
         } catch (error) {
           setPromptCustomizationsError(error instanceof Error ? error.message : 'Failed to save prompt settings.');
@@ -257,7 +264,7 @@ export function useAppController() {
     }, 450);
 
     return () => clearTimeout(timeout);
-  }, [promptCustomizations, promptCustomizationsHydrated]);
+  }, [debugMode, promptCustomizations, promptCustomizationsHydrated]);
 
   useEffect(() => {
     if (!selectedTestRef) {
@@ -680,7 +687,8 @@ export function useAppController() {
     designRequestedName,
     designError,
     promptCustomizations,
-    promptCustomizationsError
+    promptCustomizationsError,
+    debugMode
   };
 
   const derived = {
@@ -753,7 +761,8 @@ export function useAppController() {
     setDesignRequestedName,
     setDesignError,
     setPromptCustomizations,
-    setPromptCustomizationsError
+    setPromptCustomizationsError,
+    setDebugMode
   };
 
   return { state, derived, actions };

@@ -3,6 +3,7 @@ import { once } from "events";
 import { promisify } from "util";
 import sharp from "sharp";
 import { logger } from "../../utils/logger.js";
+import { emitDesktopDebug } from "../../utils/desktop-debug.js";
 
 const execAsync = promisify(exec);
 
@@ -56,6 +57,7 @@ async function listAvailableAVDs() {
 }
 
 export async function connectToDevice(avdName) {
+  emitDesktopDebug("device.connect", "device", {}, { platform: "android", stage: "start", avdName: avdName || null });
   const devices = await listConnectedDevices();
 
   // If no AVD specified, try to use an already-running emulator or pick the first available
@@ -64,6 +66,7 @@ export async function connectToDevice(avdName) {
     for (const id of devices) {
       if (id.startsWith("emulator-")) {
         console.log(`Using already-running emulator: ${id}`);
+        emitDesktopDebug("device.connect", "device", {}, { platform: "android", stage: "success", deviceId: id, reused: true });
         return id;
       }
     }
@@ -85,6 +88,7 @@ export async function connectToDevice(avdName) {
         const { stdout } = await execAsync(`adb -s ${id} emu avd name`);
         if (stdout.trim() === avdName) {
           console.log(`Emulator ${avdName} is already running as ${id}`);
+          emitDesktopDebug("device.connect", "device", {}, { platform: "android", stage: "success", deviceId: id, reused: true });
           return id;
         }
       } catch {}
@@ -97,6 +101,7 @@ export async function connectToDevice(avdName) {
 
   const deviceId = await waitForDeviceConnection("emulator-", 120000);
   if (!deviceId) {
+    emitDesktopDebug("device.error", "device", {}, { platform: "android", operation: "connect", message: `Emulator ${avdName} did not appear in time.` });
     console.error(`Emulator ${avdName} did not appear in time.`);
     process.exit(1);
   }
@@ -104,11 +109,13 @@ export async function connectToDevice(avdName) {
   console.log(`Device ${deviceId} detected. Waiting for boot...`);
   const booted = await waitForDeviceBoot(deviceId);
   if (!booted) {
+    emitDesktopDebug("device.error", "device", {}, { platform: "android", operation: "connect", message: `Emulator ${avdName} did not finish booting.` });
     console.error(`Emulator ${avdName} did not finish booting.`);
     process.exit(1);
   }
 
   console.log(`Emulator ${avdName} is fully booted.`);
+  emitDesktopDebug("device.connect", "device", {}, { platform: "android", stage: "success", deviceId, reused: false });
   return deviceId;
 }
 
@@ -151,6 +158,7 @@ export async function getScreenshotAsBase64(deviceId, deviceInfo) {
   if (code !== 0) {
     const stderrOutput = Buffer.concat(stderrChunks).toString();
     logger.error(`ADB screencap failed with code ${code}`, { stderr: stderrOutput });
+    emitDesktopDebug("device.error", "device", {}, { platform: "android", operation: "screenshot", deviceId, message: `adb screencap exited with code ${code}` });
     throw new Error(`adb screencap exited with code ${code}`);
   }
 
@@ -160,6 +168,7 @@ export async function getScreenshotAsBase64(deviceId, deviceInfo) {
 
   if (buffer.length === 0) {
     logger.error('Screenshot buffer is empty!', { deviceId, chunks: chunks.length });
+    emitDesktopDebug("device.error", "device", {}, { platform: "android", operation: "screenshot", deviceId, message: "Screenshot capture returned empty buffer" });
     throw new Error('Screenshot capture returned empty buffer');
   }
 
@@ -171,5 +180,13 @@ export async function getScreenshotAsBase64(deviceId, deviceInfo) {
     logger.debug(`Screenshot scaled: ${buffer.length} bytes after scaling`);
   }
 
-  return buffer.toString("base64");
+  const base64 = buffer.toString("base64");
+  emitDesktopDebug("device.screenshot", "device", {}, {
+    platform: "android",
+    deviceId,
+    width: deviceInfo?.scaled_width,
+    height: deviceInfo?.scaled_height,
+    base64Length: base64.length
+  });
+  return base64;
 }

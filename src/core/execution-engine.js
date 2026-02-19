@@ -3,6 +3,7 @@ import { writeFile } from "fs/promises";
 import { getScreenshotAsBase64, getCurrentPlatform } from "../device/connection.js";
 import { handleModelAction } from "../device/actions.js";
 import { sendCUARequest } from "../device/openai.js";
+import { emitDesktopDebug } from "../utils/desktop-debug.js";
 
 export class ExecutionEngine {
   constructor(session, options = {}) {
@@ -135,6 +136,23 @@ export class ExecutionEngine {
           this.session.deviceInfo
         );
 
+        emitDesktopDebug(
+          "device.screenshot",
+          "device",
+          {
+            runId: context?.runId,
+            stepId: stepContext?.stepId,
+            instructionIndex: stepContext?.instructionIndex
+          },
+          {
+            source: action.type === "screenshot" ? "explicit_action" : "post_action",
+            callId: call_id,
+            width: this.session.deviceInfo?.scaled_width,
+            height: this.session.deviceInfo?.scaled_height,
+            base64Length: screenshotBase64.length
+          }
+        );
+
         if (this.recordScreenshots && this.screenshotDir) {
           const framePath = path.join(this.screenshotDir, `frame_${String(Date.now())}.png`);
           await writeFile(framePath, Buffer.from(screenshotBase64, "base64"));
@@ -156,6 +174,13 @@ export class ExecutionEngine {
           messages: input,
           previousResponseId: newResponseId,
           deviceInfo: this.session.deviceInfo,
+          debugContext: {
+            scope: context?.sessionId ? "design" : "execution",
+            runId: context?.runId,
+            sessionId: context?.sessionId,
+            stepId: stepContext?.stepId,
+            instructionIndex: stepContext?.instructionIndex
+          }
         });
 
         newResponseId = response.id;

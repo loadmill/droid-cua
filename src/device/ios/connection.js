@@ -10,6 +10,7 @@ import sharp from "sharp";
 import { startAppium, setupAppiumCleanup } from "./appium-server.js";
 import * as appium from "./appium-client.js";
 import { logger } from "../../utils/logger.js";
+import { emitDesktopDebug } from "../../utils/desktop-debug.js";
 
 const execAsync = promisify(exec);
 
@@ -162,6 +163,7 @@ async function waitForSimulatorBoot(udid, timeoutMs = 60000) {
  * @returns {Promise<string>} Simulator ID for use with other functions
  */
 export async function connectToDevice(simulatorName) {
+  emitDesktopDebug("device.connect", "device", {}, { platform: "ios", stage: "start", simulatorName: simulatorName || null });
   // Setup cleanup handlers
   setupAppiumCleanup();
 
@@ -201,6 +203,12 @@ export async function connectToDevice(simulatorName) {
   };
 
   console.log(`Connected to simulator "${simulatorName}" (${udid})`);
+  emitDesktopDebug("device.connect", "device", {}, {
+    platform: "ios",
+    stage: "success",
+    simulatorName,
+    udid
+  });
   return udid;
 }
 
@@ -255,8 +263,8 @@ export async function getDeviceInfo(simulatorId) {
 export async function getScreenshotAsBase64(simulatorId, deviceInfo) {
   await ensureSessionAlive();
 
-  const base64 = await appium.getScreenshot(activeSession.sessionId);
-  let buffer = Buffer.from(base64, "base64");
+  const rawBase64 = await appium.getScreenshot(activeSession.sessionId);
+  let buffer = Buffer.from(rawBase64, "base64");
 
   logger.debug(`iOS screenshot captured: ${buffer.length} bytes before scaling`);
 
@@ -268,7 +276,15 @@ export async function getScreenshotAsBase64(simulatorId, deviceInfo) {
     logger.debug(`iOS screenshot scaled: ${buffer.length} bytes after scaling`);
   }
 
-  return buffer.toString("base64");
+  const base64 = buffer.toString("base64");
+  emitDesktopDebug("device.screenshot", "device", {}, {
+    platform: "ios",
+    simulatorId,
+    width: deviceInfo?.scaled_width,
+    height: deviceInfo?.scaled_height,
+    base64Length: base64.length
+  });
+  return base64;
 }
 
 /**
@@ -281,6 +297,15 @@ async function ensureSessionAlive() {
 
   const status = await appium.getSessionStatus(activeSession.sessionId);
   if (!status) {
+    emitDesktopDebug("reconnect.attempt", "device", {}, {
+      platform: "ios",
+      stage: "start",
+      reason: "appium session status check failed"
+    });
+    emitDesktopDebug("device.disconnect", "device", {}, {
+      platform: "ios",
+      reason: "appium session no longer active"
+    });
     console.log("Session died, recreating...");
     const session = await appium.createSession({
       platformName: "iOS",
@@ -291,6 +316,11 @@ async function ensureSessionAlive() {
       "appium:shouldTerminateApp": false,
     });
     activeSession.sessionId = session.sessionId;
+    emitDesktopDebug("reconnect.attempt", "device", {}, {
+      platform: "ios",
+      stage: "success",
+      sessionId: session.sessionId
+    });
   }
 }
 
@@ -315,6 +345,11 @@ export function getDevicePixelRatio() {
  */
 export async function disconnect() {
   if (activeSession) {
+    emitDesktopDebug("device.disconnect", "device", {}, {
+      platform: "ios",
+      udid: activeSession.udid,
+      simulatorName: activeSession.simulatorName
+    });
     try {
       await appium.deleteSession(activeSession.sessionId);
     } catch {}
